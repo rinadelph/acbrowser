@@ -29,9 +29,7 @@ use std::process::Command as ProcessCommand;
 /// These commands don't need a browser, so we handle them directly to avoid
 /// sending passwords through the daemon's Unix socket channel.
 fn run_auth_cli(cmd: &serde_json::Value, json_mode: bool) -> ! {
-    let exe_path = env::current_exe().unwrap_or_default();
-    let exe_path = exe_path.canonicalize().unwrap_or(exe_path);
-    let exe_dir = exe_path.parent().unwrap_or(std::path::Path::new("."));
+    let exe_dir = connection::resolve_exe_dir().unwrap_or_else(|| PathBuf::from("."));
 
     let mut script_paths = vec![
         exe_dir.join("auth-cli.js"),

@@ -12,6 +12,29 @@ use std::time::Duration;
 #[cfg(unix)]
 use std::os::unix::net::UnixStream;
 
+/// Strip the `\\?\` extended-length path prefix that Windows `canonicalize()` adds.
+/// Node.js cannot handle these paths, so they must be normalized before being
+/// passed as arguments to Node processes.
+#[cfg(windows)]
+pub fn strip_extended_length_prefix(path: PathBuf) -> PathBuf {
+    let p = path.to_string_lossy();
+    if let Some(stripped) = p.strip_prefix(r"\\?\") {
+        PathBuf::from(stripped)
+    } else {
+        path
+    }
+}
+
+/// Resolve the exe path, canonicalizing symlinks and stripping the Windows
+/// `\\?\` prefix when present.
+pub fn resolve_exe_dir() -> Option<PathBuf> {
+    let exe_path = env::current_exe().ok()?;
+    let exe_path = exe_path.canonicalize().unwrap_or(exe_path);
+    #[cfg(windows)]
+    let exe_path = strip_extended_length_prefix(exe_path);
+    exe_path.parent().map(|p| p.to_path_buf())
+}
+
 #[derive(Serialize)]
 #[allow(dead_code)]
 pub struct Request {
@@ -352,10 +375,8 @@ pub fn ensure_daemon(
         }
     }
 
-    let exe_path = env::current_exe().map_err(|e| e.to_string())?;
-    // Canonicalize to resolve symlinks (e.g., npm global bin symlink -> actual binary)
-    let exe_path = exe_path.canonicalize().unwrap_or(exe_path);
-    let exe_dir = exe_path.parent().unwrap();
+    let exe_dir = resolve_exe_dir()
+        .ok_or_else(|| "Failed to resolve executable directory".to_string())?;
 
     let mut daemon_paths = vec![
         exe_dir.join("daemon.js"),

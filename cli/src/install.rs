@@ -1,5 +1,40 @@
 use crate::color;
+use crate::connection;
+use std::path::PathBuf;
 use std::process::{exit, Command, Stdio};
+
+/// Read the playwright-core version from its package.json so that the install
+/// command downloads the exact Chromium revision the runtime expects.
+fn resolve_playwright_version() -> Option<String> {
+    let exe_dir = connection::resolve_exe_dir()?;
+
+    let candidates = [
+        exe_dir.join("../node_modules/playwright-core/package.json"),
+        exe_dir.join("node_modules/playwright-core/package.json"),
+    ];
+
+    // Also check AGENT_BROWSER_HOME
+    let home_candidates: Vec<PathBuf> = std::env::var("AGENT_BROWSER_HOME")
+        .ok()
+        .map(|h| {
+            let home = PathBuf::from(h);
+            vec![
+                home.join("node_modules/playwright-core/package.json"),
+            ]
+        })
+        .unwrap_or_default();
+
+    for path in home_candidates.iter().chain(candidates.iter()) {
+        if let Ok(contents) = std::fs::read_to_string(path) {
+            if let Ok(json) = serde_json::from_str::<serde_json::Value>(&contents) {
+                if let Some(version) = json["version"].as_str() {
+                    return Some(version.to_string());
+                }
+            }
+        }
+    }
+    None
+}
 
 pub fn run_install(with_deps: bool) {
     let is_linux = cfg!(target_os = "linux");
@@ -143,17 +178,24 @@ pub fn run_install(with_deps: bool) {
 
     println!("{}", color::cyan("Installing Chromium browser..."));
 
-    // On Windows, we need to use cmd.exe to run npx because npx is actually npx.cmd
-    // and Command::new() doesn't resolve .cmd files the way the shell does.
-    // Pass the entire command as a single string to /c to handle paths with spaces.
+    // Pin to the same playwright version as the bundled playwright-core so the
+    // downloaded Chromium revision matches what the runtime expects.
+    let pw_package = match resolve_playwright_version() {
+        Some(v) => {
+            println!("  Using playwright@{} (matched to bundled playwright-core)", v);
+            format!("playwright@{}", v)
+        }
+        None => "playwright".to_string(),
+    };
+
     #[cfg(windows)]
     let status = Command::new("cmd")
-        .args(["/c", "npx playwright install chromium"])
+        .args(["/c", &format!("npx {} install chromium", pw_package)])
         .status();
 
     #[cfg(not(windows))]
     let status = Command::new("npx")
-        .args(["playwright", "install", "chromium"])
+        .args([&pw_package, "install", "chromium"])
         .status();
 
     match status {

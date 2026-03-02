@@ -173,6 +173,20 @@ jobs:
           }
         shell: pwsh
 
+      - name: Verify Chromium revision matches playwright-core
+        run: |
+          $expected = node -e "const b=require('./node_modules/playwright-core/browsers.json'); console.log(b.browsers.find(x=>x.name==='chromium-headless-shell').revision)"
+          $dirs = Get-ChildItem "$env:LOCALAPPDATA\ms-playwright" -Directory | Where-Object { $_.Name -like "chromium_headless_shell-*" }
+          $installed = $dirs | ForEach-Object { $_.Name -replace 'chromium_headless_shell-', '' }
+          Write-Host "Expected revision: $expected"
+          Write-Host "Installed revision(s): $installed"
+          if ($installed -notcontains $expected) {
+            Write-Error "Chromium revision mismatch: installed [$installed], expected $expected"
+            exit 1
+          }
+          Write-Host "Chromium revision matches playwright-core"
+        shell: pwsh
+
   serverless-chromium:
     name: Serverless Chromium (@sparticuz/chromium)
     runs-on: ubuntu-latest
