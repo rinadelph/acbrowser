@@ -55,13 +55,30 @@ jobs:
         run: pnpm test
 
   rust:
+    name: Rust
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: cli
+
+      - name: Run Rust tests
+        run: cargo test --profile ci --manifest-path cli/Cargo.toml
+
+  rust-cross:
     name: Rust (${{ matrix.os }} - ${{ matrix.target }})
+    if: github.event_name == 'push'
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
           - os: macos-latest
             target: aarch64-apple-darwin
           - os: macos-latest
@@ -88,8 +105,9 @@ jobs:
 
   windows-integration:
     name: Windows Integration Test
+    if: github.event_name == 'push'
     runs-on: windows-latest
-    needs: rust
+    needs: rust-cross
 
     steps:
       - name: Checkout repository
@@ -204,8 +222,9 @@ jobs:
 
   global-install:
     name: Global Install (${{ matrix.os }})
+    if: github.event_name == 'push'
     runs-on: ${{ matrix.os }}
-    needs: rust
+    needs: rust-cross
     strategy:
       matrix:
         include:
