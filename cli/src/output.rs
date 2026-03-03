@@ -38,7 +38,9 @@ fn truncate_if_needed(content: &str, max: Option<usize>) -> String {
             let total_chars = content.chars().count();
             format!(
                 "{}\n[truncated: showing {} of {} chars. Use --max-output to adjust]",
-                &content[..byte_offset], limit, total_chars
+                &content[..byte_offset],
+                limit,
+                total_chars
             )
         }
         // Content has fewer than `limit` chars despite more bytes
@@ -51,7 +53,10 @@ fn print_with_boundaries(content: &str, origin: Option<&str>, opts: &OutputOptio
     if opts.content_boundaries {
         let origin_str = origin.unwrap_or("unknown");
         let nonce = get_boundary_nonce();
-        println!("--- AGENT_BROWSER_PAGE_CONTENT nonce={} origin={} ---", nonce, origin_str);
+        println!(
+            "--- AGENT_BROWSER_PAGE_CONTENT nonce={} origin={} ---",
+            nonce, origin_str
+        );
         println!("{}", content);
         println!("--- END_AGENT_BROWSER_PAGE_CONTENT nonce={} ---", nonce);
     } else {
@@ -65,14 +70,18 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
             let mut json_val = serde_json::to_value(resp).unwrap_or_default();
             if let Some(obj) = json_val.as_object_mut() {
                 let nonce = get_boundary_nonce();
-                let origin = obj.get("data")
+                let origin = obj
+                    .get("data")
                     .and_then(|d| d.get("origin"))
                     .and_then(|v| v.as_str())
                     .unwrap_or("unknown");
-                obj.insert("_boundary".to_string(), serde_json::json!({
-                    "nonce": nonce,
-                    "origin": origin,
-                }));
+                obj.insert(
+                    "_boundary".to_string(),
+                    serde_json::json!({
+                        "nonce": nonce,
+                        "origin": origin,
+                    }),
+                );
             }
             println!("{}", serde_json::to_string(&json_val).unwrap_or_default());
         } else {
@@ -113,15 +122,11 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                     return;
                 }
                 Some("diff_url") => {
-                    if let Some(snap_data) =
-                        obj.get("snapshot").and_then(|v| v.as_object())
-                    {
+                    if let Some(snap_data) = obj.get("snapshot").and_then(|v| v.as_object()) {
                         println!("{}", color::bold("Snapshot diff:"));
                         print_snapshot_diff(snap_data);
                     }
-                    if let Some(ss_data) =
-                        obj.get("screenshot").and_then(|v| v.as_object())
-                    {
+                    if let Some(ss_data) = obj.get("screenshot").and_then(|v| v.as_object()) {
                         println!("\n{}", color::bold("Screenshot diff:"));
                         print_screenshot_diff(ss_data);
                     }
@@ -269,7 +274,11 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                 for log in logs {
                     let level = log.get("type").and_then(|v| v.as_str()).unwrap_or("log");
                     let text = log.get("text").and_then(|v| v.as_str()).unwrap_or("");
-                    console_output.push_str(&format!("{} {}\n", color::console_level_prefix(level), text));
+                    console_output.push_str(&format!(
+                        "{} {}\n",
+                        color::console_level_prefix(level),
+                        text
+                    ));
                 }
                 if console_output.ends_with('\n') {
                     console_output.pop();
@@ -404,11 +413,7 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                     }
                     _ => {
                         if let Some(path) = data.get("path").and_then(|v| v.as_str()) {
-                            println!(
-                                "{} Recording started: {}",
-                                color::success_indicator(),
-                                path
-                            );
+                            println!("{} Recording started: {}", color::success_indicator(), path);
                         } else {
                             println!("{} Recording started", color::success_indicator());
                         }
@@ -591,7 +596,10 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                     let filename = file.get("filename").and_then(|v| v.as_str()).unwrap_or("");
                     let size = file.get("size").and_then(|v| v.as_i64()).unwrap_or(0);
                     let modified = file.get("modified").and_then(|v| v.as_str()).unwrap_or("");
-                    let encrypted = file.get("encrypted").and_then(|v| v.as_bool()).unwrap_or(false);
+                    let encrypted = file
+                        .get("encrypted")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false);
                     let size_str = if size > 1024 {
                         format!("{:.1}KB", size as f64 / 1024.0)
                     } else {
@@ -599,7 +607,11 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                     };
                     let date_str = modified.split('T').next().unwrap_or(modified);
                     let enc_str = if encrypted { " [encrypted]" } else { "" };
-                    println!("  {} {}", filename, color::dim(&format!("({}, {}){}", size_str, date_str, enc_str)));
+                    println!(
+                        "  {} {}",
+                        filename,
+                        color::dim(&format!("({}, {}){}", size_str, date_str, enc_str))
+                    );
                 }
             }
             return;
@@ -609,13 +621,22 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
         if let Some(true) = data.get("renamed").and_then(|v| v.as_bool()) {
             let old_name = data.get("oldName").and_then(|v| v.as_str()).unwrap_or("");
             let new_name = data.get("newName").and_then(|v| v.as_str()).unwrap_or("");
-            println!("{} Renamed {} -> {}", color::success_indicator(), old_name, new_name);
+            println!(
+                "{} Renamed {} -> {}",
+                color::success_indicator(),
+                old_name,
+                new_name
+            );
             return;
         }
 
         // State clear
         if let Some(cleared) = data.get("cleared").and_then(|v| v.as_i64()) {
-            println!("{} Cleared {} state file(s)", color::success_indicator(), cleared);
+            println!(
+                "{} Cleared {} state file(s)",
+                color::success_indicator(),
+                cleared
+            );
             return;
         }
 
@@ -623,7 +644,10 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
         if let Some(summary) = data.get("summary") {
             let cookies = summary.get("cookies").and_then(|v| v.as_i64()).unwrap_or(0);
             let origins = summary.get("origins").and_then(|v| v.as_i64()).unwrap_or(0);
-            let encrypted = data.get("encrypted").and_then(|v| v.as_bool()).unwrap_or(false);
+            let encrypted = data
+                .get("encrypted")
+                .and_then(|v| v.as_bool())
+                .unwrap_or(false);
             let enc_str = if encrypted { " (encrypted)" } else { "" };
             println!("State file summary{}:", enc_str);
             println!("  Cookies: {}", cookies);
@@ -633,7 +657,11 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
 
         // State clean
         if let Some(cleaned) = data.get("cleaned").and_then(|v| v.as_i64()) {
-            println!("{} Cleaned {} old state file(s)", color::success_indicator(), cleaned);
+            println!(
+                "{} Cleaned {} old state file(s)",
+                color::success_indicator(),
+                cleaned
+            );
             return;
         }
 
@@ -652,7 +680,12 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                     let name = p.get("name").and_then(|v| v.as_str()).unwrap_or("");
                     let url = p.get("url").and_then(|v| v.as_str()).unwrap_or("");
                     let user = p.get("username").and_then(|v| v.as_str()).unwrap_or("");
-                    println!("  {} {} {}", color::green(name), color::dim(user), color::dim(url));
+                    println!(
+                        "  {} {} {}",
+                        color::green(name),
+                        color::dim(user),
+                        color::dim(url)
+                    );
                 }
             }
             return;
@@ -662,8 +695,14 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
         if let Some(profile) = data.get("profile").and_then(|v| v.as_object()) {
             let name = profile.get("name").and_then(|v| v.as_str()).unwrap_or("");
             let url = profile.get("url").and_then(|v| v.as_str()).unwrap_or("");
-            let user = profile.get("username").and_then(|v| v.as_str()).unwrap_or("");
-            let created = profile.get("createdAt").and_then(|v| v.as_str()).unwrap_or("");
+            let user = profile
+                .get("username")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let created = profile
+                .get("createdAt")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             let last_login = profile.get("lastLoginAt").and_then(|v| v.as_str());
             println!("Name: {}", name);
             println!("URL: {}", url);
@@ -678,47 +717,94 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
         // Auth save/update/login/delete
         if data.get("saved").and_then(|v| v.as_bool()).unwrap_or(false) {
             let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            println!("{} Auth profile '{}' saved", color::success_indicator(), name);
+            println!(
+                "{} Auth profile '{}' saved",
+                color::success_indicator(),
+                name
+            );
             return;
         }
-        if data.get("updated").and_then(|v| v.as_bool()).unwrap_or(false)
-            && !data.get("saved").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("updated")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+            && !data.get("saved").and_then(|v| v.as_bool()).unwrap_or(false)
+        {
             let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("");
-            println!("{} Auth profile '{}' updated", color::success_indicator(), name);
+            println!(
+                "{} Auth profile '{}' updated",
+                color::success_indicator(),
+                name
+            );
             return;
         }
-        if data.get("loggedIn").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("loggedIn")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             let name = data.get("name").and_then(|v| v.as_str()).unwrap_or("");
             if let Some(title) = data.get("title").and_then(|v| v.as_str()) {
-                println!("{} Logged in as '{}' - {}", color::success_indicator(), name, title);
+                println!(
+                    "{} Logged in as '{}' - {}",
+                    color::success_indicator(),
+                    name,
+                    title
+                );
             } else {
                 println!("{} Logged in as '{}'", color::success_indicator(), name);
             }
             return;
         }
-        if data.get("deleted").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("deleted")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             if let Some(name) = data.get("name").and_then(|v| v.as_str()) {
-                println!("{} Auth profile '{}' deleted", color::success_indicator(), name);
+                println!(
+                    "{} Auth profile '{}' deleted",
+                    color::success_indicator(),
+                    name
+                );
                 return;
             }
         }
 
         // Confirmation required (for orchestrator use)
-        if data.get("confirmation_required").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("confirmation_required")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             let category = data.get("category").and_then(|v| v.as_str()).unwrap_or("");
-            let description = data.get("description").and_then(|v| v.as_str()).unwrap_or("");
-            let cid = data.get("confirmation_id").and_then(|v| v.as_str()).unwrap_or("");
+            let description = data
+                .get("description")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let cid = data
+                .get("confirmation_id")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
             println!("Confirmation required:");
             println!("  {}: {}", category, description);
             println!("  Run: agent-browser confirm {}", cid);
             println!("  Or:  agent-browser deny {}", cid);
             return;
         }
-        if data.get("confirmed").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("confirmed")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             println!("{} Action confirmed", color::success_indicator());
             return;
         }
-        if data.get("denied").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if data
+            .get("denied")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             println!("{} Action denied", color::success_indicator());
             return;
         }
@@ -2362,6 +2448,7 @@ Options:
   --action-policy <path>     Action policy JSON file (or AGENT_BROWSER_ACTION_POLICY)
   --confirm-actions <list>   Categories requiring confirmation (or AGENT_BROWSER_CONFIRM_ACTIONS)
   --confirm-interactive      Interactive confirmation prompts; auto-denies if stdin is not a TTY (or AGENT_BROWSER_CONFIRM_INTERACTIVE)
+  --native                   [Experimental] Use native Rust daemon instead of Node.js (or AGENT_BROWSER_NATIVE)
   --config <path>            Use a custom config file (or AGENT_BROWSER_CONFIG env)
   --debug                    Debug output
   --version, -V              Show version
@@ -2417,6 +2504,7 @@ Environment:
   AGENT_BROWSER_ACTION_POLICY    Path to action policy JSON file
   AGENT_BROWSER_CONFIRM_ACTIONS  Action categories requiring confirmation
   AGENT_BROWSER_CONFIRM_INTERACTIVE Enable interactive confirmation prompts
+  AGENT_BROWSER_NATIVE           Use native Rust daemon (experimental, no Node.js/Playwright)
 
 Install (recommended, fastest - native Rust CLI):
   npm install -g agent-browser
@@ -2494,10 +2582,7 @@ fn print_screenshot_diff(data: &serde_json::Map<String, serde_json::Value>) {
         .get("mismatchPercentage")
         .and_then(|v| v.as_f64())
         .unwrap_or(0.0);
-    let is_match = data
-        .get("match")
-        .and_then(|v| v.as_bool())
-        .unwrap_or(false);
+    let is_match = data.get("match").and_then(|v| v.as_bool()).unwrap_or(false);
     let dim_mismatch = data
         .get("dimensionMismatch")
         .and_then(|v| v.as_bool())
@@ -2508,7 +2593,10 @@ fn print_screenshot_diff(data: &serde_json::Map<String, serde_json::Value>) {
             color::error_indicator()
         );
     } else if is_match {
-        println!("{} Images match (0% difference)", color::success_indicator());
+        println!(
+            "{} Images match (0% difference)",
+            color::success_indicator()
+        );
     } else {
         println!(
             "{} {:.2}% pixels differ",
@@ -2519,7 +2607,10 @@ fn print_screenshot_diff(data: &serde_json::Map<String, serde_json::Value>) {
     if let Some(diff_path) = data.get("diffPath").and_then(|v| v.as_str()) {
         println!("  Diff image: {}", color::green(diff_path));
     }
-    let total = data.get("totalPixels").and_then(|v| v.as_i64()).unwrap_or(0);
+    let total = data
+        .get("totalPixels")
+        .and_then(|v| v.as_i64())
+        .unwrap_or(0);
     let different = data
         .get("differentPixels")
         .and_then(|v| v.as_i64())

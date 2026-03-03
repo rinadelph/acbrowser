@@ -3,6 +3,7 @@ mod commands;
 mod connection;
 mod flags;
 mod install;
+mod native;
 mod output;
 mod validation;
 
@@ -20,7 +21,9 @@ use commands::{gen_id, parse_command, ParseError};
 use connection::{ensure_daemon, get_socket_dir, send_command, DaemonOptions};
 use flags::{clean_args, parse_flags};
 use install::run_install;
-use output::{print_command_help, print_help, print_response_with_opts, print_version, OutputOptions};
+use output::{
+    print_command_help, print_help, print_response_with_opts, print_version, OutputOptions,
+};
 
 use std::path::PathBuf;
 use std::process::Command as ProcessCommand;
@@ -120,7 +123,10 @@ fn run_auth_cli(cmd: &serde_json::Value, json_mode: bool) -> ! {
         }
         Err(e) => {
             if json_mode {
-                println!(r#"{{"success":false,"error":"Failed to run auth-cli: {}"}}"#, e);
+                println!(
+                    r#"{{"success":false,"error":"Failed to run auth-cli: {}"}}"#,
+                    e
+                );
             } else {
                 eprintln!("{} Failed to run auth-cli: {}", color::error_indicator(), e);
             }
@@ -249,6 +255,14 @@ fn main() {
         env::set_var("MSYS2_ARG_CONV_EXCL", "*");
     }
 
+    // Native daemon mode: when AGENT_BROWSER_DAEMON is set, run as the daemon process
+    if env::var("AGENT_BROWSER_DAEMON").is_ok() {
+        let session = env::var("AGENT_BROWSER_SESSION").unwrap_or_else(|_| "default".to_string());
+        let rt = tokio::runtime::Runtime::new().expect("Failed to create tokio runtime");
+        rt.block_on(native::daemon::run_daemon(&session));
+        return;
+    }
+
     let args: Vec<String> = env::args().skip(1).collect();
     let flags = parse_flags(&args);
     let clean = clean_args(&args);
@@ -320,10 +334,17 @@ fn main() {
                 color::warning_indicator()
             );
         }
-        if cmd.get("passwordStdin").and_then(|v| v.as_bool()).unwrap_or(false) {
+        if cmd
+            .get("passwordStdin")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(false)
+        {
             let mut pass = String::new();
             if std::io::stdin().read_line(&mut pass).is_err() || pass.is_empty() {
-                eprintln!("{} Failed to read password from stdin", color::error_indicator());
+                eprintln!(
+                    "{} Failed to read password from stdin",
+                    color::error_indicator()
+                );
                 exit(1);
             }
             let pass = pass.trim_end_matches('\n').trim_end_matches('\r');
@@ -339,7 +360,10 @@ fn main() {
     // Handle local auth commands without starting the daemon.
     // These don't need a browser, so we avoid sending passwords through the socket.
     if let Some(action) = cmd.get("action").and_then(|v| v.as_str()) {
-        if matches!(action, "auth_save" | "auth_list" | "auth_show" | "auth_delete") {
+        if matches!(
+            action,
+            "auth_save" | "auth_list" | "auth_show" | "auth_delete"
+        ) {
             run_auth_cli(&cmd, flags.json);
         }
     }
@@ -379,6 +403,7 @@ fn main() {
         allowed_domains: flags.allowed_domains.as_deref(),
         action_policy: flags.action_policy.as_deref(),
         confirm_actions: flags.confirm_actions.as_deref(),
+        native: flags.native,
     };
     let daemon_result = match ensure_daemon(&flags.session, &daemon_opts) {
         Ok(result) => result,
@@ -788,10 +813,20 @@ fn main() {
             // Handle interactive confirmation
             if flags.confirm_interactive {
                 if let Some(data) = &resp.data {
-                    if data.get("confirmation_required").and_then(|v| v.as_bool()).unwrap_or(false) {
-                        let desc = data.get("description").and_then(|v| v.as_str()).unwrap_or("unknown action");
+                    if data
+                        .get("confirmation_required")
+                        .and_then(|v| v.as_bool())
+                        .unwrap_or(false)
+                    {
+                        let desc = data
+                            .get("description")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("unknown action");
                         let category = data.get("category").and_then(|v| v.as_str()).unwrap_or("");
-                        let cid = data.get("confirmation_id").and_then(|v| v.as_str()).unwrap_or("");
+                        let cid = data
+                            .get("confirmation_id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("");
 
                         eprintln!("[agent-browser] Action requires confirmation:");
                         eprintln!("  {}: {}", category, desc);
