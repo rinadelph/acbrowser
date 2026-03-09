@@ -4,19 +4,92 @@ export const metadata = pageMetadata("next")
 
 # Next.js + Vercel
 
-Two patterns for running agent-browser from Next.js server actions
-deployed on Vercel.
+Two patterns for running agent-browser from Next.js on Vercel.
 
-## Pattern 1: Vercel Sandbox
+## Pattern 1: Serverless Function
 
-A Linux microVM spins up on demand, runs agent-browser + Chrome, and
-shuts down. No external server. Best for one-off tasks under ~60
-seconds.
+Run `@sparticuz/chromium` + `puppeteer-core` directly inside a Vercel
+serverless function. No external server needed.
+
+### Setup
 
 ```bash
-# Vercel serverless function creates a sandbox, runs commands, returns result
-Sandbox.create() -> runCommand("agent-browser open ...") -> stop()
+pnpm add @sparticuz/chromium puppeteer-core
 ```
+
+### Browser launcher
+
+```ts
+import puppeteer from "puppeteer-core";
+import chromium from "@sparticuz/chromium";
+import fs from "node:fs";
+
+const CHROME_PATHS = [
+  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+  "/usr/bin/google-chrome",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
+];
+
+function findLocalChrome(): string {
+  for (const p of CHROME_PATHS) {
+    if (fs.existsSync(p)) return p;
+  }
+  throw new Error("Chrome not found. Set CHROMIUM_PATH.");
+}
+
+async function launchBrowser() {
+  const isLambda =
+    !!process.env.VERCEL || !!process.env.AWS_LAMBDA_FUNCTION_NAME;
+
+  return puppeteer.launch({
+    args: isLambda ? chromium.args : ["--no-sandbox"],
+    executablePath: isLambda
+      ? await chromium.executablePath()
+      : process.env.CHROMIUM_PATH || findLocalChrome(),
+    headless: true,
+    defaultViewport: { width: 1280, height: 720 },
+  });
+}
+```
+
+On Vercel, `@sparticuz/chromium` provides the binary automatically.
+Locally, the launcher finds your system Chrome or uses `CHROMIUM_PATH`.
+
+### Server action
+
+```ts
+"use server";
+
+export async function screenshotUrl(url: string) {
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2", timeout: 30_000 });
+    const title = await page.title();
+    const screenshot = await page.screenshot({ encoding: "base64" });
+    return { ok: true, title, screenshot };
+  } finally {
+    await browser.close();
+  }
+}
+```
+
+### Next.js config
+
+```ts
+// next.config.ts
+const nextConfig = {
+  serverExternalPackages: ["@sparticuz/chromium"],
+};
+export default nextConfig;
+```
+
+## Pattern 2: Vercel Sandbox
+
+A Linux microVM spins up on demand, runs agent-browser + Chrome, and
+shuts down. No binary size limits. Best for multi-step workflows or
+when you need full Chrome capabilities.
 
 ### Server action
 
@@ -25,11 +98,21 @@ Sandbox.create() -> runCommand("agent-browser open ...") -> stop()
 import { Sandbox } from "@vercel/sandbox";
 
 export async function screenshotUrl(url: string) {
-  const sandbox = await Sandbox.create({ runtime: "node24" });
+  const snapshotId = process.env.AGENT_BROWSER_SNAPSHOT_ID;
+
+  const sandbox = snapshotId
+    ? await Sandbox.create({
+        source: { type: "snapshot", snapshotId },
+        timeout: 120_000,
+      })
+    : await Sandbox.create({ runtime: "node24", timeout: 120_000 });
 
   try {
-    await sandbox.runCommand("npm", ["install", "-g", "agent-browser"]);
-    await sandbox.runCommand("npx", ["agent-browser", "install"]);
+    if (!snapshotId) {
+      await sandbox.runCommand("npm", ["install", "-g", "agent-browser"]);
+      await sandbox.runCommand("npx", ["agent-browser", "install"]);
+    }
+
     await sandbox.runCommand("agent-browser", ["open", url]);
 
     const result = await sandbox.runCommand("agent-browser", [
@@ -56,101 +139,33 @@ npx tsx scripts/create-snapshot.ts
 # Output: AGENT_BROWSER_SNAPSHOT_ID=snap_xxxxxxxxxxxx
 ```
 
-Then use the snapshot:
-
-```ts
-const sandbox = await Sandbox.create({
-  source: { type: "snapshot", snapshotId: process.env.AGENT_BROWSER_SNAPSHOT_ID },
-  timeout: 120_000,
-});
-
-// agent-browser and Chromium are already installed -- run commands immediately
-await sandbox.runCommand("agent-browser", ["open", url]);
-```
-
-## Pattern 2: External API server
-
-You host agent-browser + Chrome on a server. Your Vercel function
-calls it over HTTP. Best for long-running workflows, persistent
-sessions, or scheduled jobs.
-
-### Architecture
-
-```bash
-Vercel (serverless)         Your server (Docker)
-+------------------+        +------------------------+
-| Server action    |  --->  | API server (:3001)     |
-|   fetch()        |        | agent-browser daemon   |
-+------------------+        | Chrome (headless)      |
-                            +------------------------+
-```
-
-### Server action
-
-```ts
-"use server";
-
-const API_URL = process.env.AGENT_BROWSER_API_URL;
-
-export async function screenshotUrl(url: string) {
-  const res = await fetch(`${API_URL}/api/run`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      commands: [
-        { action: "launch", headless: true },
-        { action: "navigate", url, waitUntil: "networkidle" },
-        { action: "screenshot" },
-      ],
-    }),
-  });
-  return res.json();
-}
-```
-
-### Deploy the API server
-
-The example includes a Dockerfile. Deploy it to any container host
-(Railway, Fly.io, Render, etc.):
-
-```bash
-cd examples/next
-docker build -t agent-browser-api .
-docker run -p 3001:3001 agent-browser-api
-```
-
-Set `AGENT_BROWSER_API_URL` in your Vercel project settings to point
-at your deployed server.
+Add the snapshot ID to your Vercel environment variables or `.env.local`.
 
 ## Scheduled workflows (cron)
 
-For recurring tasks like daily price monitoring, use Vercel Cron Jobs:
+For recurring tasks like daily monitoring, use Vercel Cron Jobs with
+either pattern:
 
 ```ts
 // app/api/cron/monitor/route.ts
 export async function GET() {
-  const res = await fetch(`${process.env.AGENT_BROWSER_API_URL}/api/run`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      commands: [
-        { action: "launch", headless: true },
-        { action: "navigate", url: "https://example.com/pricing" },
-        { action: "snapshot", interactive: false, compact: true },
-        { action: "close" },
-      ],
-    }),
-  });
-
-  const data = await res.json();
-  // Process results, send alerts, store in database...
-  return Response.json({ ok: true, data });
+  const browser = await launchBrowser();
+  try {
+    const page = await browser.newPage();
+    await page.goto("https://example.com/pricing", {
+      waitUntil: "networkidle2",
+    });
+    const snapshot = await page.accessibility.snapshot();
+    // Process results, send alerts, store in database...
+    return Response.json({ ok: true, snapshot });
+  } finally {
+    await browser.close();
+  }
 }
 ```
 
-Add to `vercel.json`:
-
 ```json
+// vercel.json
 {
   "crons": [
     { "path": "/api/cron/monitor", "schedule": "0 9 * * *" }
@@ -162,15 +177,15 @@ Add to `vercel.json`:
 
 <table>
   <thead>
-    <tr><th></th><th>Vercel Sandbox</th><th>External server</th></tr>
+    <tr><th></th><th>Serverless Function</th><th>Vercel Sandbox</th></tr>
   </thead>
   <tbody>
-    <tr><td>Infrastructure</td><td>None (Vercel manages it)</td><td>You host a server</td></tr>
-    <tr><td>Startup time</td><td>Sub-second with snapshot</td><td>Always warm</td></tr>
-    <tr><td>Task duration</td><td>Up to ~2 minutes</td><td>No limit</td></tr>
-    <tr><td>Persistent sessions</td><td>No (ephemeral)</td><td>Yes</td></tr>
-    <tr><td>Cost model</td><td>Per-use (active CPU)</td><td>Always-on server</td></tr>
-    <tr><td>Best for</td><td>One-off screenshots, scrapes</td><td>Long workflows, cron jobs</td></tr>
+    <tr><td>Infrastructure</td><td>None (runs in-function)</td><td>None (Vercel manages VMs)</td></tr>
+    <tr><td>Startup time</td><td>~2-3 seconds</td><td>Sub-second with snapshot</td></tr>
+    <tr><td>Binary size limit</td><td>50MB compressed</td><td>None</td></tr>
+    <tr><td>Multi-step workflows</td><td>Single request only</td><td>Yes (persistent session)</td></tr>
+    <tr><td>Task duration</td><td>Up to 300s (Pro)</td><td>Up to ~2 minutes</td></tr>
+    <tr><td>Best for</td><td>Fast single-request screenshots</td><td>Complex workflows, full Chrome</td></tr>
   </tbody>
 </table>
 
@@ -181,14 +196,12 @@ Add to `vercel.json`:
     <tr><th>Variable</th><th>Pattern</th><th>Description</th></tr>
   </thead>
   <tbody>
+    <tr><td><code>CHROMIUM_PATH</code></td><td>Serverless</td><td>Path to local Chrome/Chromium (auto-detected on Vercel)</td></tr>
     <tr><td><code>AGENT_BROWSER_SNAPSHOT_ID</code></td><td>Sandbox</td><td>Pre-built snapshot for fast startup</td></tr>
-    <tr><td><code>AGENT_BROWSER_API_URL</code></td><td>External</td><td>URL of your API server</td></tr>
-    <tr><td><code>AGENT_BROWSER_API_SECRET</code></td><td>External</td><td>Shared auth secret (optional)</td></tr>
   </tbody>
 </table>
 
-## Example project
+## Demo app
 
-A full working example is at
-[`examples/next/`](https://github.com/vercel-labs/agent-browser/tree/main/examples/next)
-with both patterns, a demo UI, and deployment configs.
+A working demo with both patterns, a UI, and a deploy-to-Vercel button is at
+[`examples/demo/`](https://github.com/agent-browser/agent-browser/tree/main/examples/demo).

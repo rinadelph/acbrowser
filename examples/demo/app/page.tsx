@@ -204,14 +204,24 @@ export default function Home() {
     setScreenshotResult(null);
     setSnapshotResult(null);
 
-    if (action === "screenshot") {
-      const result = await takeScreenshot(url, mode);
-      setScreenshotResult(result);
-    } else {
-      const result = await takeSnapshot(url, mode);
-      setSnapshotResult(result);
+    try {
+      if (action === "screenshot") {
+        const result = await takeScreenshot(url, mode);
+        setScreenshotResult(result);
+      } else {
+        const result = await takeSnapshot(url, mode);
+        setSnapshotResult(result);
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      if (action === "screenshot") {
+        setScreenshotResult({ ok: false, error: message });
+      } else {
+        setSnapshotResult({ ok: false, error: message });
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   }
 
   const hasResult = screenshotResult || snapshotResult;
