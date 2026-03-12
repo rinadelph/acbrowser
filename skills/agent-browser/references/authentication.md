@@ -38,6 +38,8 @@ google-chrome --remote-debugging-port=9222
 
 Log in to your target site(s) in this Chrome window as you normally would.
 
+> **Security note:** `--remote-debugging-port` exposes full browser control on localhost. Any local process can connect and read cookies, execute JS, etc. Only use on trusted machines and close Chrome when done.
+
 **Step 2: Grab the auth state**
 
 ```bash
@@ -57,6 +59,8 @@ agent-browser open https://app.example.com/dashboard
 ```
 
 This works for any site, including those with complex OAuth flows, SSO, or 2FA -- as long as Chrome already has valid session cookies.
+
+> **Security note:** State files contain session tokens in plaintext. Add them to `.gitignore`, delete when no longer needed, and set `AGENT_BROWSER_ENCRYPTION_KEY` for encryption at rest. See [Security Best Practices](#security-best-practices).
 
 **Tip:** Combine with `--session-name` so the imported auth auto-persists across restarts:
 

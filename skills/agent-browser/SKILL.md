@@ -57,6 +57,8 @@ agent-browser --auto-connect state save ./auth.json
 agent-browser --state ./auth.json open https://app.example.com/dashboard
 ```
 
+State files contain session tokens in plaintext -- add to `.gitignore` and delete when no longer needed. Set `AGENT_BROWSER_ENCRYPTION_KEY` for encryption at rest.
+
 **Option 2: Persistent profile (simplest for recurring tasks)**
 
 ```bash

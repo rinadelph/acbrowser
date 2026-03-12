@@ -73,6 +73,8 @@ google-chrome --remote-debugging-port=9222
 
 Log in to your target site(s) in this Chrome window.
 
+`--remote-debugging-port` exposes full browser control on localhost. Any local process can connect. Only use on trusted machines and close Chrome when done.
+
 **Step 2:** Connect and save the authenticated state:
 
 ```bash
@@ -96,6 +98,8 @@ Combine with `--session-name` so the imported auth auto-persists across restarts
 agent-browser --session-name myapp state load ./my-auth.json
 # From now on, state auto-saves/restores for "myapp"
 ```
+
+State files contain session tokens in plaintext. Add them to `.gitignore` and delete when no longer needed. For encryption at rest, see [State encryption](#state-encryption) below.
 
 ## Session persistence
 
