@@ -97,6 +97,7 @@ interface PageError {
 export class BrowserManager {
   private browser: Browser | null = null;
   private cdpEndpoint: string | null = null; // stores port number or full URL
+  private resolvedWsUrl: string | null = null;
   private isPersistentContext: boolean = false;
   private browserbaseSessionId: string | null = null;
   private browserbaseApiKey: string | null = null;
@@ -170,15 +171,9 @@ export class BrowserManager {
   }
 
   getCdpUrl(): string | null {
-    if (this.cdpEndpoint) {
-      try {
-        const ws = (this.browser as any)?.wsEndpoint?.();
-        if (ws) return ws;
-      } catch {}
-      if (this.cdpEndpoint.startsWith('ws://') || this.cdpEndpoint.startsWith('wss://')) {
-        return this.cdpEndpoint;
-      }
-      return null;
+    if (this.resolvedWsUrl) return this.resolvedWsUrl;
+    if (this.cdpEndpoint?.startsWith('ws://') || this.cdpEndpoint?.startsWith('wss://')) {
+      return this.cdpEndpoint;
     }
     try {
       return (this.browser as any)?.wsEndpoint?.() ?? null;
@@ -1422,6 +1417,7 @@ export class BrowserManager {
         ...(this.downloadPath && { downloadsPath: this.downloadPath }),
       });
       this.cdpEndpoint = null;
+      this.resolvedWsUrl = null;
 
       // Check for auto-load state file (supports encrypted files)
       let storageState:
@@ -1576,6 +1572,19 @@ export class BrowserManager {
       // All validation passed - commit state
       this.browser = browser;
       this.cdpEndpoint = cdpEndpoint;
+
+      let resolvedWs: string | null = null;
+      try {
+        resolvedWs = (browser as any).wsEndpoint?.() ?? null;
+      } catch {}
+      if (!resolvedWs && (cdpUrl.startsWith('http://') || cdpUrl.startsWith('https://'))) {
+        try {
+          const resp = await fetch(`${cdpUrl}/json/version`);
+          const info = await resp.json();
+          resolvedWs = info.webSocketDebuggerUrl ?? null;
+        } catch {}
+      }
+      this.resolvedWsUrl = resolvedWs;
 
       for (const context of contexts) {
         context.setDefaultTimeout(getDefaultTimeout());
@@ -2576,6 +2585,7 @@ export class BrowserManager {
     this.pages = [];
     this.contexts = [];
     this.cdpEndpoint = null;
+    this.resolvedWsUrl = null;
     this.browserbaseSessionId = null;
     this.browserbaseApiKey = null;
     this.browserUseSessionId = null;
