@@ -1600,10 +1600,7 @@ async function handleInspect(
   }
 
   // Shut down any existing inspect server so we always target the current page
-  if (browser.inspectServer) {
-    browser.inspectServer.stop();
-    browser.inspectServer = null;
-  }
+  browser.stopInspectServer();
 
   const stripped = cdpUrl.replace(/^(wss?|https?):\/\//, '');
   const hostPort = stripped.split('/')[0];
@@ -1632,7 +1629,7 @@ async function handleInspect(
     chromeWsUrl: cdpUrl,
   });
   await server.start();
-  browser.inspectServer = server;
+  browser.setInspectServer(server);
 
   const url = `http://127.0.0.1:${server.port}`;
   openUrlInBrowser(url);
@@ -1647,7 +1644,9 @@ function openUrlInBrowser(url: string): void {
       : platform === 'win32'
         ? `start "" "${url}"`
         : `xdg-open "${url}"`;
-  exec(cmd);
+  exec(cmd, (err) => {
+    if (err) console.error('[inspect] Failed to open browser:', err.message);
+  });
 }
 
 async function handleTitle(

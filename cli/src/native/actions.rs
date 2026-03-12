@@ -1202,18 +1202,15 @@ async fn handle_inspect(state: &mut DaemonState) -> Result<Value, String> {
 
 fn open_url_in_browser(url: &str) {
     #[cfg(target_os = "macos")]
-    {
-        let _ = std::process::Command::new("open").arg(url).spawn();
-    }
+    let result = std::process::Command::new("open").arg(url).spawn();
     #[cfg(target_os = "linux")]
-    {
-        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
-    }
+    let result = std::process::Command::new("xdg-open").arg(url).spawn();
     #[cfg(target_os = "windows")]
-    {
-        let _ = std::process::Command::new("cmd")
-            .args(["/c", "start", "", url])
-            .spawn();
+    let result = std::process::Command::new("cmd")
+        .args(["/c", "start", "", url])
+        .spawn();
+    if let Err(e) = result {
+        eprintln!("[inspect] Failed to open browser: {}", e);
     }
 }
 

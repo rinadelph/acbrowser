@@ -9,6 +9,18 @@ export interface InspectServerOptions {
 
 let nextAttachId = -1000;
 
+export function injectSessionId(json: string, sessionId: string): string {
+  const msg = JSON.parse(json);
+  msg.sessionId = sessionId;
+  return JSON.stringify(msg);
+}
+
+export function stripSessionId(json: string): string {
+  const msg = JSON.parse(json);
+  delete msg.sessionId;
+  return JSON.stringify(msg);
+}
+
 export class InspectServer {
   private httpServer: http.Server;
   private wss: WebSocketServer;
@@ -104,8 +116,7 @@ export class InspectServer {
       const devtoolsWs = this.sessions.get(sessionId);
       if (!devtoolsWs || devtoolsWs.readyState !== WebSocket.OPEN) return;
 
-      delete msg.sessionId;
-      devtoolsWs.send(JSON.stringify(msg));
+      devtoolsWs.send(stripSessionId(text));
     } catch (err) {
       console.error('[inspect] Chrome message handling error:', err);
     }
@@ -184,9 +195,7 @@ export class InspectServer {
       devtoolsWs.on('message', (data) => {
         if (!this.chromeWs || this.chromeWs.readyState !== WebSocket.OPEN) return;
         try {
-          const msg = JSON.parse(String(data));
-          msg.sessionId = sid;
-          this.chromeWs.send(JSON.stringify(msg));
+          this.chromeWs.send(injectSessionId(String(data), sid!));
         } catch (err) {
           console.error('[inspect] DevTools message forwarding error:', err);
         }

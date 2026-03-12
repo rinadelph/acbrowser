@@ -121,7 +121,19 @@ export class BrowserManager {
   private colorScheme: 'light' | 'dark' | 'no-preference' | null = null;
   private downloadPath: string | null = null;
   private allowedDomains: string[] = [];
-  inspectServer: InspectServer | null = null;
+  private inspectServer: InspectServer | null = null;
+
+  stopInspectServer(): void {
+    if (this.inspectServer) {
+      this.inspectServer.stop();
+      this.inspectServer = null;
+    }
+  }
+
+  setInspectServer(server: InspectServer): void {
+    this.stopInspectServer();
+    this.inspectServer = server;
+  }
 
   /**
    * Set the persistent color scheme preference.
@@ -1576,13 +1588,17 @@ export class BrowserManager {
       let resolvedWs: string | null = null;
       try {
         resolvedWs = (browser as any).wsEndpoint?.() ?? null;
-      } catch {}
+      } catch (err) {
+        console.error('[inspect] wsEndpoint() failed:', err);
+      }
       if (!resolvedWs && (cdpUrl.startsWith('http://') || cdpUrl.startsWith('https://'))) {
         try {
           const resp = await fetch(`${cdpUrl}/json/version`);
-          const info = await resp.json();
+          const info: any = await resp.json();
           resolvedWs = info.webSocketDebuggerUrl ?? null;
-        } catch {}
+        } catch (err) {
+          console.error('[inspect] /json/version fetch failed:', err);
+        }
       }
       this.resolvedWsUrl = resolvedWs;
 
@@ -2500,10 +2516,7 @@ export class BrowserManager {
    * Close the browser and clean up
    */
   async close(): Promise<void> {
-    if (this.inspectServer) {
-      this.inspectServer.stop();
-      this.inspectServer = null;
-    }
+    this.stopInspectServer();
 
     // Stop recording if active (saves video)
     if (this.recordingContext) {
