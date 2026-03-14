@@ -468,10 +468,16 @@ fn get_chrome_user_data_dirs() -> Vec<PathBuf> {
 }
 
 /// Returns true if Chrome's sandbox should be disabled because the environment
-/// doesn't support it (containers, VMs, running as root).
+/// doesn't support it (containers, VMs, CI runners, running as root).
 fn should_disable_sandbox(existing_args: &[String]) -> bool {
     if existing_args.iter().any(|a| a == "--no-sandbox") {
         return false; // already set by user
+    }
+
+    // CI environments (GitHub Actions, GitLab CI, etc.) often lack user namespace
+    // support due to AppArmor or kernel restrictions.
+    if std::env::var("CI").is_ok() {
+        return true;
     }
 
     #[cfg(unix)]
