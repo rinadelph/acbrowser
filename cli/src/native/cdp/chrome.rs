@@ -194,6 +194,29 @@ pub fn launch_chrome(options: &LaunchOptions) -> Result<ChromeProcess, String> {
         }
     };
 
+    let max_attempts = 3;
+    let mut last_err = String::new();
+
+    for attempt in 1..=max_attempts {
+        match try_launch_chrome(&chrome_path, options) {
+            Ok(process) => return Ok(process),
+            Err(e) => {
+                last_err = e;
+                if attempt < max_attempts {
+                    eprintln!(
+                        "[chrome] Launch attempt {}/{} failed, retrying in 500ms...",
+                        attempt, max_attempts
+                    );
+                    std::thread::sleep(Duration::from_millis(500));
+                }
+            }
+        }
+    }
+
+    Err(last_err)
+}
+
+fn try_launch_chrome(chrome_path: &Path, options: &LaunchOptions) -> Result<ChromeProcess, String> {
     let ChromeArgs {
         args,
         temp_user_data_dir,
@@ -205,7 +228,7 @@ pub fn launch_chrome(options: &LaunchOptions) -> Result<ChromeProcess, String> {
         }
     };
 
-    let mut child = Command::new(&chrome_path)
+    let mut child = Command::new(chrome_path)
         .args(&args)
         .stdin(Stdio::null())
         .stdout(Stdio::null())
