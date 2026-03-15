@@ -1378,7 +1378,7 @@ async fn handle_snapshot(cmd: &Value, state: &mut DaemonState) -> Result<Value, 
             .and_then(|v| v.as_bool())
             .unwrap_or(false),
         depth: cmd
-            .get("depth")
+            .get("maxDepth")
             .and_then(|v| v.as_u64())
             .map(|d| d as usize),
         cursor: cmd.get("cursor").and_then(|v| v.as_bool()).unwrap_or(false),
