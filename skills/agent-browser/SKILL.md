@@ -148,7 +148,9 @@ agent-browser wait --download ./output.zip     # Wait for any download to comple
 agent-browser --download-path ./downloads open <url>  # Set default download directory
 
 # Network
-agent-browser network requests                 # Inspect tracked requests
+agent-browser network requests                 # Inspect tracked requests (method, URL, status, request body, response body, response headers)
+agent-browser network requests --filter api    # Filter requests by URL pattern
+agent-browser network requests --clear         # Clear request log
 agent-browser network route "**/api/*" --abort  # Block matching requests
 agent-browser network har start                # Start HAR recording
 agent-browser network har stop ./capture.har   # Stop and save HAR file

@@ -92,6 +92,22 @@ pub struct TrackedRequest {
     pub timestamp: u64,
     #[serde(rename = "resourceType")]
     pub resource_type: String,
+    /// Request body (post data), if any.
+    #[serde(rename = "requestBody", skip_serializing_if = "Option::is_none")]
+    pub request_body: Option<String>,
+    /// HTTP response status code.
+    pub status: Option<i64>,
+    /// Response headers from the server.
+    #[serde(rename = "responseHeaders")]
+    pub response_headers: Value,
+    /// Response body text. Only populated for non-binary responses after
+    /// loading completes. Fetched lazily via `Network.getResponseBody`.
+    #[serde(rename = "responseBody", skip_serializing_if = "Option::is_none")]
+    pub response_body: Option<String>,
+    /// Internal CDP request ID used to correlate response events.
+    /// Not included in serialized JSON output.
+    #[serde(skip)]
+    pub request_id: String,
 }
 
 pub struct FetchPausedRequest {
@@ -140,6 +156,9 @@ pub struct DaemonState {
     pub routes: Arc<RwLock<Vec<RouteEntry>>>,
     pub tracked_requests: Vec<TrackedRequest>,
     pub request_tracking: bool,
+    /// CDP request IDs for which `Network.loadingFinished` has fired.
+    /// Used by `handle_requests` to lazily fetch response bodies.
+    pub completed_request_ids: Vec<String>,
     pub active_frame_id: Option<String>,
     /// Origin-scoped extra HTTP headers set via `--headers` on navigate.
     /// Key is the origin (scheme + host + port), value is the headers map.
@@ -187,6 +206,7 @@ impl DaemonState {
             routes: Arc::new(RwLock::new(Vec::new())),
             tracked_requests: Vec::new(),
             request_tracking: false,
+            completed_request_ids: Vec::new(),
             active_frame_id: None,
             origin_headers: Arc::new(RwLock::new(HashMap::new())),
             fetch_handler_task: None,
@@ -475,7 +495,7 @@ impl DaemonState {
                                         .unwrap_or("Other")
                                         .to_string();
                                     self.har_entries.push(HarEntry {
-                                        request_id,
+                                        request_id: request_id.clone(),
                                         wall_time,
                                         method: method.clone(),
                                         url: url.clone(),
@@ -507,17 +527,28 @@ impl DaemonState {
                                         .duration_since(std::time::UNIX_EPOCH)
                                         .map(|d| d.as_millis() as u64)
                                         .unwrap_or(0);
+                                    let request_body = request
+                                        .get("postData")
+                                        .and_then(|v| v.as_str())
+                                        .map(String::from);
                                     self.tracked_requests.push(TrackedRequest {
                                         url,
                                         method,
                                         headers,
                                         timestamp,
                                         resource_type,
+                                        request_body,
+                                        status: None,
+                                        response_headers: json!({}),
+                                        response_body: None,
+                                        request_id,
                                     });
                                 }
                             }
                         }
-                        "Network.responseReceived" if self.har_recording => {
+                        "Network.responseReceived"
+                            if self.har_recording || self.request_tracking =>
+                        {
                             if let Some(response) = event.params.get("response") {
                                 let request_id = event
                                     .params
@@ -525,72 +556,96 @@ impl DaemonState {
                                     .and_then(|v| v.as_str())
                                     .unwrap_or("");
                                 let status = response.get("status").and_then(|v| v.as_i64());
-                                let status_text = response
-                                    .get("statusText")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                let mime_type = response
-                                    .get("mimeType")
-                                    .and_then(|v| v.as_str())
-                                    .unwrap_or("")
-                                    .to_string();
-                                let http_version = response
-                                    .get("protocol")
-                                    .and_then(|v| v.as_str())
-                                    .map(har_cdp_protocol_to_http_version)
-                                    .unwrap_or_else(|| "HTTP/1.1".to_string());
-                                let response_headers = har_extract_headers(response.get("headers"));
-                                let redirect_url = response_headers
-                                    .iter()
-                                    .find(|(k, _)| k.eq_ignore_ascii_case("location"))
-                                    .map(|(_, v)| v.clone())
-                                    .unwrap_or_default();
-                                let encoded_data_length = response
+                                if self.har_recording {
+                                    let status_text = response
+                                        .get("statusText")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let mime_type = response
+                                        .get("mimeType")
+                                        .and_then(|v| v.as_str())
+                                        .unwrap_or("")
+                                        .to_string();
+                                    let http_version = response
+                                        .get("protocol")
+                                        .and_then(|v| v.as_str())
+                                        .map(har_cdp_protocol_to_http_version)
+                                        .unwrap_or_else(|| "HTTP/1.1".to_string());
+                                    let response_headers =
+                                        har_extract_headers(response.get("headers"));
+                                    let redirect_url = response_headers
+                                        .iter()
+                                        .find(|(k, _)| k.eq_ignore_ascii_case("location"))
+                                        .map(|(_, v)| v.clone())
+                                        .unwrap_or_default();
+                                    let encoded_data_length = response
+                                        .get("encodedDataLength")
+                                        .and_then(|v| v.as_i64())
+                                        .unwrap_or(-1);
+                                    let cdp_timing = response.get("timing").cloned();
+                                    if let Some(entry) = self
+                                        .har_entries
+                                        .iter_mut()
+                                        .rev()
+                                        .find(|e| e.request_id == request_id)
+                                    {
+                                        entry.status = status;
+                                        entry.status_text = status_text;
+                                        entry.mime_type = mime_type;
+                                        entry.http_version = http_version;
+                                        entry.response_headers = response_headers;
+                                        entry.redirect_url = redirect_url;
+                                        entry.response_body_size = encoded_data_length;
+                                        entry.cdp_timing = cdp_timing;
+                                    }
+                                }
+                                if self.request_tracking {
+                                    let response_headers =
+                                        response.get("headers").cloned().unwrap_or(json!({}));
+                                    if let Some(entry) = self
+                                        .tracked_requests
+                                        .iter_mut()
+                                        .rev()
+                                        .find(|r| r.request_id == request_id)
+                                    {
+                                        entry.status = status;
+                                        entry.response_headers = response_headers;
+                                    }
+                                }
+                            }
+                        }
+                        "Network.loadingFinished"
+                            if self.har_recording || self.request_tracking =>
+                        {
+                            let request_id = event
+                                .params
+                                .get("requestId")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("");
+                            if self.har_recording {
+                                let timestamp =
+                                    event.params.get("timestamp").and_then(|v| v.as_f64());
+                                let encoded_data_length = event
+                                    .params
                                     .get("encodedDataLength")
-                                    .and_then(|v| v.as_i64())
-                                    .unwrap_or(-1);
-                                let cdp_timing = response.get("timing").cloned();
+                                    .and_then(|v| v.as_i64());
                                 if let Some(entry) = self
                                     .har_entries
                                     .iter_mut()
                                     .rev()
                                     .find(|e| e.request_id == request_id)
                                 {
-                                    entry.status = status;
-                                    entry.status_text = status_text;
-                                    entry.mime_type = mime_type;
-                                    entry.http_version = http_version;
-                                    entry.response_headers = response_headers;
-                                    entry.redirect_url = redirect_url;
-                                    entry.response_body_size = encoded_data_length;
-                                    entry.cdp_timing = cdp_timing;
+                                    if let Some(ts) = timestamp {
+                                        entry.loading_finished_timestamp = Some(ts);
+                                    }
+                                    if let Some(len) = encoded_data_length {
+                                        entry.response_body_size = len;
+                                    }
                                 }
                             }
-                        }
-                        "Network.loadingFinished" if self.har_recording => {
-                            let request_id = event
-                                .params
-                                .get("requestId")
-                                .and_then(|v| v.as_str())
-                                .unwrap_or("");
-                            let timestamp = event.params.get("timestamp").and_then(|v| v.as_f64());
-                            let encoded_data_length = event
-                                .params
-                                .get("encodedDataLength")
-                                .and_then(|v| v.as_i64());
-                            if let Some(entry) = self
-                                .har_entries
-                                .iter_mut()
-                                .rev()
-                                .find(|e| e.request_id == request_id)
-                            {
-                                if let Some(ts) = timestamp {
-                                    entry.loading_finished_timestamp = Some(ts);
-                                }
-                                if let Some(len) = encoded_data_length {
-                                    entry.response_body_size = len;
-                                }
+                            if self.request_tracking {
+                                self.completed_request_ids.push(request_id.to_string());
                             }
                         }
                         "Page.screencastFrame" => {
@@ -5378,6 +5433,7 @@ async fn handle_unroute(cmd: &Value, state: &mut DaemonState) -> Result<Value, S
 async fn handle_requests(cmd: &Value, state: &mut DaemonState) -> Result<Value, String> {
     if cmd.get("clear").and_then(|v| v.as_bool()).unwrap_or(false) {
         state.tracked_requests.clear();
+        state.completed_request_ids.clear();
         return Ok(json!({ "cleared": true }));
     }
 
@@ -5389,6 +5445,49 @@ async fn handle_requests(cmd: &Value, state: &mut DaemonState) -> Result<Value, 
                     .client
                     .send_command_no_params("Network.enable", Some(session_id))
                     .await;
+            }
+        }
+    }
+
+    // Fetch response bodies for requests whose loading has finished.
+    // Clone the Arc<CdpClient> so we can release the borrow on state.browser
+    // before mutably accessing state.tracked_requests.
+    let completed = std::mem::take(&mut state.completed_request_ids);
+    if !completed.is_empty() {
+        let client_and_session = state.browser.as_ref().and_then(|mgr| {
+            mgr.active_session_id()
+                .ok()
+                .map(|sid| (Arc::clone(&mgr.client), sid.to_string()))
+        });
+        if let Some((client, session_id)) = client_and_session {
+            for request_id in &completed {
+                let idx = state
+                    .tracked_requests
+                    .iter()
+                    .position(|r| &r.request_id == request_id);
+                if let Some(idx) = idx {
+                    if state.tracked_requests[idx].response_body.is_none() {
+                        if let Ok(body_result) = client
+                            .send_command(
+                                "Network.getResponseBody",
+                                Some(json!({ "requestId": request_id })),
+                                Some(&session_id),
+                            )
+                            .await
+                        {
+                            let base64_encoded = body_result
+                                .get("base64Encoded")
+                                .and_then(|v| v.as_bool())
+                                .unwrap_or(false);
+                            if !base64_encoded {
+                                state.tracked_requests[idx].response_body = body_result
+                                    .get("body")
+                                    .and_then(|v| v.as_str())
+                                    .map(String::from);
+                            }
+                        }
+                    }
+                }
             }
         }
     }

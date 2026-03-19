@@ -545,12 +545,43 @@ async fn test_tracked_request_struct() {
         headers: json!({"Accept": "text/html"}),
         timestamp: 12345,
         resource_type: "Document".to_string(),
+        request_body: None,
+        status: None,
+        response_headers: json!({}),
+        response_body: None,
+        request_id: String::new(),
     };
     let serialized = serde_json::to_value(&tr).unwrap();
     assert_eq!(serialized["url"], "https://example.com/api");
     assert_eq!(serialized["method"], "GET");
     assert_eq!(serialized["resourceType"], "Document");
     assert_eq!(serialized["timestamp"], 12345);
+    // request_id is skipped in serialization
+    assert!(serialized.get("request_id").is_none());
+    assert!(serialized.get("requestId").is_none());
+}
+
+#[tokio::test]
+async fn test_tracked_request_with_bodies() {
+    use super::actions::TrackedRequest;
+    let tr = TrackedRequest {
+        url: "https://example.com/api".to_string(),
+        method: "POST".to_string(),
+        headers: json!({"Content-Type": "application/json"}),
+        timestamp: 12345,
+        resource_type: "XHR".to_string(),
+        request_body: Some(r#"{"key":"value"}"#.to_string()),
+        status: Some(200),
+        response_headers: json!({"content-type": "application/json"}),
+        response_body: Some(r#"{"result":"ok"}"#.to_string()),
+        request_id: "req-1".to_string(),
+    };
+    let serialized = serde_json::to_value(&tr).unwrap();
+    assert_eq!(serialized["requestBody"], r#"{"key":"value"}"#);
+    assert_eq!(serialized["status"], 200);
+    assert_eq!(serialized["responseBody"], r#"{"result":"ok"}"#);
+    // request_id should not appear in serialized output
+    assert!(serialized.get("request_id").is_none());
 }
 
 #[tokio::test]
@@ -565,6 +596,11 @@ async fn test_request_tracking_state() {
         headers: json!({}),
         timestamp: 1,
         resource_type: "Document".to_string(),
+        request_body: None,
+        status: Some(200),
+        response_headers: json!({}),
+        response_body: Some("<html>ok</html>".to_string()),
+        request_id: "req-1".to_string(),
     });
     state.tracked_requests.push(super::actions::TrackedRequest {
         url: "https://other.com".to_string(),
@@ -572,6 +608,11 @@ async fn test_request_tracking_state() {
         headers: json!({}),
         timestamp: 2,
         resource_type: "XHR".to_string(),
+        request_body: Some(r#"{"x":1}"#.to_string()),
+        status: Some(201),
+        response_headers: json!({}),
+        response_body: None,
+        request_id: "req-2".to_string(),
     });
     assert_eq!(state.tracked_requests.len(), 2);
 

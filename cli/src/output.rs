@@ -374,7 +374,18 @@ pub fn print_response_with_opts(resp: &Response, action: Option<&str>, opts: &Ou
                         .get("resourceType")
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
-                    println!("{} {} ({})", method, url, resource_type);
+                    let status = req.get("status").and_then(|v| v.as_i64());
+                    if let Some(status) = status {
+                        println!("{} {} {} ({})", method, url, status, resource_type);
+                    } else {
+                        println!("{} {} ({})", method, url, resource_type);
+                    }
+                    if let Some(body) = req.get("requestBody").and_then(|v| v.as_str()) {
+                        println!("  Request body: {}", body);
+                    }
+                    if let Some(body) = req.get("responseBody").and_then(|v| v.as_str()) {
+                        println!("  Response body: {}", body);
+                    }
                 }
             }
             return;
@@ -1724,7 +1735,7 @@ Subcommands:
     --abort                  Abort matching requests
     --body <json>            Respond with custom body
   unroute [url]              Remove route (all if no URL)
-  requests [options]         List captured requests
+  requests [options]         List captured requests (method, URL, status, request/response bodies)
     --clear                  Clear request log
     --filter <pattern>       Filter by URL pattern
   har <start|stop> [path]    Record and export a HAR file
