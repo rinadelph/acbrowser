@@ -475,8 +475,11 @@ fn main() {
         exit(1);
     }
 
-    // Auto-connect to existing browser
-    if flags.auto_connect {
+    // Auto-connect to existing browser.
+    // Skip when the daemon was already running — it already holds the connection
+    // from a previous auto-connect launch, so re-sending the launch command would
+    // redundantly probe Chrome and may trigger repeated permission prompts (#962).
+    if flags.auto_connect && !daemon_result.already_running {
         let mut launch_cmd = json!({
             "id": gen_id(),
             "action": "launch",
@@ -516,8 +519,11 @@ fn main() {
 
     // Connect via CDP if --cdp flag is set
     // Accepts either a port number (e.g., "9222") or a full URL (e.g., "ws://..." or "wss://...")
+    // Skip when daemon already running — it already holds the CDP connection.
     if let Some(ref cdp_value) = flags.cdp {
-        let mut launch_cmd = if cdp_value.starts_with("ws://")
+        // Validate CDP value eagerly (even when daemon is already running) so
+        // the user gets an immediate error for bad input instead of a silent no-op.
+        let launch_cmd = if cdp_value.starts_with("ws://")
             || cdp_value.starts_with("wss://")
             || cdp_value.starts_with("http://")
             || cdp_value.starts_with("https://")
@@ -573,65 +579,72 @@ fn main() {
             })
         };
 
-        if flags.ignore_https_errors {
-            launch_cmd["ignoreHTTPSErrors"] = json!(true);
-        }
+        if !daemon_result.already_running {
+            let mut launch_cmd = launch_cmd;
 
-        if let Some(ref cs) = flags.color_scheme {
-            launch_cmd["colorScheme"] = json!(cs);
-        }
-
-        if let Some(ref dp) = flags.download_path {
-            launch_cmd["downloadPath"] = json!(dp);
-        }
-
-        let err = match send_command(launch_cmd, &flags.session) {
-            Ok(resp) if resp.success => None,
-            Ok(resp) => Some(
-                resp.error
-                    .unwrap_or_else(|| "CDP connection failed".to_string()),
-            ),
-            Err(e) => Some(e.to_string()),
-        };
-
-        if let Some(msg) = err {
-            if flags.json {
-                print_json_error(msg);
-            } else {
-                eprintln!("{} {}", color::error_indicator(), msg);
+            if flags.ignore_https_errors {
+                launch_cmd["ignoreHTTPSErrors"] = json!(true);
             }
-            exit(1);
+
+            if let Some(ref cs) = flags.color_scheme {
+                launch_cmd["colorScheme"] = json!(cs);
+            }
+
+            if let Some(ref dp) = flags.download_path {
+                launch_cmd["downloadPath"] = json!(dp);
+            }
+
+            let err = match send_command(launch_cmd, &flags.session) {
+                Ok(resp) if resp.success => None,
+                Ok(resp) => Some(
+                    resp.error
+                        .unwrap_or_else(|| "CDP connection failed".to_string()),
+                ),
+                Err(e) => Some(e.to_string()),
+            };
+
+            if let Some(msg) = err {
+                if flags.json {
+                    print_json_error(msg);
+                } else {
+                    eprintln!("{} {}", color::error_indicator(), msg);
+                }
+                exit(1);
+            }
         }
     }
 
     // Launch with cloud provider if -p flag is set
+    // Skip when daemon already running — it already holds the provider connection.
     if let Some(ref provider) = flags.provider {
-        let mut launch_cmd = json!({
-            "id": gen_id(),
-            "action": "launch",
-            "provider": provider
-        });
+        if !daemon_result.already_running {
+            let mut launch_cmd = json!({
+                "id": gen_id(),
+                "action": "launch",
+                "provider": provider
+            });
 
-        if let Some(ref cs) = flags.color_scheme {
-            launch_cmd["colorScheme"] = json!(cs);
-        }
-
-        let err = match send_command(launch_cmd, &flags.session) {
-            Ok(resp) if resp.success => None,
-            Ok(resp) => Some(
-                resp.error
-                    .unwrap_or_else(|| "Provider connection failed".to_string()),
-            ),
-            Err(e) => Some(e.to_string()),
-        };
-
-        if let Some(msg) = err {
-            if flags.json {
-                print_json_error(msg);
-            } else {
-                eprintln!("{} {}", color::error_indicator(), msg);
+            if let Some(ref cs) = flags.color_scheme {
+                launch_cmd["colorScheme"] = json!(cs);
             }
-            exit(1);
+
+            let err = match send_command(launch_cmd, &flags.session) {
+                Ok(resp) if resp.success => None,
+                Ok(resp) => Some(
+                    resp.error
+                        .unwrap_or_else(|| "Provider connection failed".to_string()),
+                ),
+                Err(e) => Some(e.to_string()),
+            };
+
+            if let Some(msg) = err {
+                if flags.json {
+                    print_json_error(msg);
+                } else {
+                    eprintln!("{} {}", color::error_indicator(), msg);
+                }
+                exit(1);
+            }
         }
     }
 
