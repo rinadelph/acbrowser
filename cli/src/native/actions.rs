@@ -2093,8 +2093,51 @@ async fn handle_press(cmd: &Value, state: &mut DaemonState) -> Result<Value, Str
         .and_then(|v| v.as_str())
         .ok_or("Missing 'key' parameter")?;
 
-    interaction::press_key(&mgr.client, &session_id, key).await?;
+    // Parse modifier+key chords like "Control+a", "Shift+Enter", "Control+Shift+a"
+    let (actual_key, modifiers) = parse_key_chord(key);
+
+    interaction::press_key_with_modifiers(&mgr.client, &session_id, &actual_key, modifiers).await?;
     Ok(json!({ "pressed": key }))
+}
+
+/// Parse a key chord string like "Control+a" or "Control+Shift+Enter" into
+/// the actual key name and an optional CDP modifier bitmask.
+///
+/// CDP modifier values: 1 = Alt, 2 = Control, 4 = Meta (Cmd), 8 = Shift.
+fn parse_key_chord(input: &str) -> (String, Option<i32>) {
+    let parts: Vec<&str> = input.split('+').collect();
+    if parts.len() < 2 {
+        return (input.to_string(), None);
+    }
+
+    let mut modifiers = 0i32;
+    let mut key_parts: Vec<&str> = Vec::new();
+
+    for part in &parts {
+        match part.to_lowercase().as_str() {
+            "alt" => modifiers |= 1,
+            "control" | "ctrl" => modifiers |= 2,
+            "meta" | "cmd" | "command" => modifiers |= 4,
+            "shift" => modifiers |= 8,
+            _ => key_parts.push(part),
+        }
+    }
+
+    // If no modifiers were found, the '+' was part of the key name (e.g. "+")
+    // or the input was something unexpected — treat the whole string as the key.
+    if modifiers == 0 {
+        return (input.to_string(), None);
+    }
+
+    // The actual key is whatever remains after stripping modifiers.
+    // If nothing remains (e.g. "Control+"), treat the whole string as-is.
+    let actual_key = if key_parts.is_empty() {
+        input.to_string()
+    } else {
+        key_parts.join("+")
+    };
+
+    (actual_key, Some(modifiers))
 }
 
 async fn handle_hover(cmd: &Value, state: &mut DaemonState) -> Result<Value, String> {
@@ -7278,5 +7321,69 @@ mod tests {
             "auth_login should navigate with Load and then wait for form \
              selectors explicitly"
         );
+    }
+
+    #[test]
+    fn test_parse_key_chord_plain_key() {
+        let (key, mods) = parse_key_chord("a");
+        assert_eq!(key, "a");
+        assert_eq!(mods, None);
+    }
+
+    #[test]
+    fn test_parse_key_chord_enter() {
+        let (key, mods) = parse_key_chord("Enter");
+        assert_eq!(key, "Enter");
+        assert_eq!(mods, None);
+    }
+
+    #[test]
+    fn test_parse_key_chord_control_a() {
+        let (key, mods) = parse_key_chord("Control+a");
+        assert_eq!(key, "a");
+        assert_eq!(mods, Some(2));
+    }
+
+    #[test]
+    fn test_parse_key_chord_ctrl_alias() {
+        let (key, mods) = parse_key_chord("Ctrl+c");
+        assert_eq!(key, "c");
+        assert_eq!(mods, Some(2));
+    }
+
+    #[test]
+    fn test_parse_key_chord_shift_enter() {
+        let (key, mods) = parse_key_chord("Shift+Enter");
+        assert_eq!(key, "Enter");
+        assert_eq!(mods, Some(8));
+    }
+
+    #[test]
+    fn test_parse_key_chord_control_shift_a() {
+        let (key, mods) = parse_key_chord("Control+Shift+a");
+        assert_eq!(key, "a");
+        assert_eq!(mods, Some(2 | 8));
+    }
+
+    #[test]
+    fn test_parse_key_chord_meta_a() {
+        let (key, mods) = parse_key_chord("Meta+a");
+        assert_eq!(key, "a");
+        assert_eq!(mods, Some(4));
+    }
+
+    #[test]
+    fn test_parse_key_chord_alt_tab() {
+        let (key, mods) = parse_key_chord("Alt+Tab");
+        assert_eq!(key, "Tab");
+        assert_eq!(mods, Some(1));
+    }
+
+    #[test]
+    fn test_parse_key_chord_plus_key() {
+        // A bare "+" should not be confused with a separator
+        let (key, mods) = parse_key_chord("+");
+        assert_eq!(key, "+");
+        assert_eq!(mods, None);
     }
 }

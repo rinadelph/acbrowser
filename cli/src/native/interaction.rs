@@ -282,7 +282,15 @@ pub async fn press_key_with_modifiers(
     modifiers: Option<i32>,
 ) -> Result<(), String> {
     let (key_name, code, key_code) = named_key_info(key);
-    let text = key_text(&key_name);
+
+    // Suppress text insertion when Control (2) or Meta (4) modifiers are active,
+    // since these are command chords (e.g. Ctrl+A = select-all), not text input.
+    let has_command_modifier = modifiers.is_some_and(|m| m & (2 | 4) != 0);
+    let text = if has_command_modifier {
+        None
+    } else {
+        key_text(&key_name)
+    };
 
     client
         .send_command_typed::<_, Value>(
