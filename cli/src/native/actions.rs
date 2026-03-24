@@ -1189,7 +1189,7 @@ async fn auto_launch(state: &mut DaemonState) -> Result<(), String> {
     let engine = env::var("AGENT_BROWSER_ENGINE").ok();
 
     // Store proxy credentials for Fetch.authRequired handling
-    let has_proxy_auth = options.proxy_username.is_some() && options.proxy_password.is_some();
+    let has_proxy_auth = options.proxy_username.is_some();
     if has_proxy_auth {
         let mut creds = state.proxy_credentials.write().await;
         *creds = Some((
@@ -1230,17 +1230,7 @@ async fn auto_launch(state: &mut DaemonState) -> Result<(), String> {
     if has_proxy_auth {
         if let Some(ref mgr) = state.browser {
             if let Ok(session_id) = mgr.active_session_id() {
-                let _ = mgr
-                    .client
-                    .send_command(
-                        "Fetch.enable",
-                        Some(json!({
-                            "handleAuthRequests": true,
-                            "patterns": [{ "urlPattern": "*" }]
-                        })),
-                        Some(session_id),
-                    )
-                    .await;
+                let _ = network::install_domain_filter_fetch(&mgr.client, session_id, true).await;
             }
         }
     }
@@ -1502,7 +1492,7 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
     };
 
     // Store proxy credentials for Fetch.authRequired handling
-    let has_proxy_auth = options.proxy_username.is_some() && options.proxy_password.is_some();
+    let has_proxy_auth = options.proxy_username.is_some();
     if has_proxy_auth {
         let mut creds = state.proxy_credentials.write().await;
         *creds = Some((
@@ -1526,40 +1516,34 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
     state.start_fetch_handler();
     state.update_stream_client().await;
 
-    // Enable Fetch with handleAuthRequests when proxy credentials are present.
-    // This must happen before navigation so the Fetch.authRequired handler can
-    // respond to proxy 407 challenges.
-    if has_proxy_auth {
-        if let Some(ref mgr) = state.browser {
-            if let Ok(session_id) = mgr.active_session_id() {
-                let _ = mgr
-                    .client
-                    .send_command(
-                        "Fetch.enable",
-                        Some(json!({
-                            "handleAuthRequests": true,
-                            "patterns": [{ "urlPattern": "*" }]
-                        })),
-                        Some(session_id),
-                    )
-                    .await;
-            }
-        }
-    }
-
+    // Enable Fetch interception (domain filtering and/or proxy auth).
+    // Only call Fetch.enable once to avoid overwriting handleAuthRequests.
     {
         let df = state.domain_filter.read().await;
-        if let Some(ref filter) = *df {
+        let has_domain_filter = df.is_some();
+
+        if has_domain_filter || has_proxy_auth {
             if let Some(ref mgr) = state.browser {
                 if let Ok(session_id) = mgr.active_session_id() {
-                    let _ = network::install_domain_filter(
-                        &mgr.client,
-                        session_id,
-                        &filter.allowed_domains,
-                        has_proxy_auth,
-                    )
-                    .await;
-                    network::sanitize_existing_pages(&mgr.client, &mgr.pages_list(), filter).await;
+                    if let Some(ref filter) = *df {
+                        let _ = network::install_domain_filter(
+                            &mgr.client,
+                            session_id,
+                            &filter.allowed_domains,
+                            has_proxy_auth,
+                        )
+                        .await;
+                        network::sanitize_existing_pages(&mgr.client, &mgr.pages_list(), filter)
+                            .await;
+                    } else {
+                        // No domain filter, but proxy auth needs Fetch.enable
+                        let _ = network::install_domain_filter_fetch(
+                            &mgr.client,
+                            session_id,
+                            has_proxy_auth,
+                        )
+                        .await;
+                    }
                 }
             }
         }
