@@ -1030,7 +1030,7 @@ fn compact_tree(tree: &str, interactive: bool) -> String {
     let mut keep = vec![false; lines.len()];
 
     for (i, line) in lines.iter().enumerate() {
-        if line.contains("[ref=") || line.contains(": ") {
+        if line.contains("ref=") || line.contains(": ") {
             keep[i] = true;
             // Mark ancestors
             let my_indent = count_indent(line);
@@ -1198,6 +1198,26 @@ mod tests {
         assert!(result.contains("[ref=e1]"));
         assert!(result.contains("[ref=e2]"));
         assert!(result.contains("Hello"));
+    }
+
+    #[test]
+    fn test_compact_tree_radio_checkbox() {
+        // Radio/checkbox lines have attributes before ref (e.g. [checked=false, ref=e1])
+        // so "ref=" appears without a leading "[" — compact_tree must still keep them.
+        let tree = "- form\n  - radio \"Single unit\" [checked=false, ref=e1]\n  - checkbox \"I agree\" [checked=false, ref=e2]\n  - button \"Submit\" [ref=e3]\n";
+        let result = compact_tree(tree, true);
+        assert!(
+            result.contains("radio \"Single unit\""),
+            "radio should be kept"
+        );
+        assert!(
+            result.contains("checkbox \"I agree\""),
+            "checkbox should be kept"
+        );
+        assert!(
+            result.contains("button \"Submit\""),
+            "button should be kept"
+        );
     }
 
     #[test]
