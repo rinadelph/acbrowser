@@ -328,6 +328,26 @@ fn main() {
         return;
     }
 
+    // Parse proxy URL to separate server from credentials for the daemon.
+    let (proxy_server, proxy_username, proxy_password) = if let Some(ref proxy_str) = flags.proxy {
+        let parsed = parse_proxy(proxy_str);
+        let server = parsed
+            .get("server")
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .unwrap_or_else(|| proxy_str.clone());
+        let username = parsed
+            .get("username")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        let password = parsed
+            .get("password")
+            .and_then(|v| v.as_str())
+            .map(String::from);
+        (Some(server), username, password)
+    } else {
+        (None, None, None)
+    };
     let daemon_opts = DaemonOptions {
         headed: flags.headed,
         debug: flags.debug,
@@ -335,8 +355,10 @@ fn main() {
         extensions: &flags.extensions,
         args: flags.args.as_deref(),
         user_agent: flags.user_agent.as_deref(),
-        proxy: flags.proxy.as_deref(),
+        proxy: proxy_server.as_deref(),
         proxy_bypass: flags.proxy_bypass.as_deref(),
+        proxy_username: proxy_username.as_deref(),
+        proxy_password: proxy_password.as_deref(),
         ignore_https_errors: flags.ignore_https_errors,
         allow_file_access: flags.allow_file_access,
         profile: flags.profile.as_deref(),

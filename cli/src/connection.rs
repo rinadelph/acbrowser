@@ -186,6 +186,8 @@ pub struct DaemonOptions<'a> {
     pub user_agent: Option<&'a str>,
     pub proxy: Option<&'a str>,
     pub proxy_bypass: Option<&'a str>,
+    pub proxy_username: Option<&'a str>,
+    pub proxy_password: Option<&'a str>,
     pub ignore_https_errors: bool,
     pub allow_file_access: bool,
     pub profile: Option<&'a str>,
@@ -230,6 +232,12 @@ fn apply_daemon_env(cmd: &mut Command, session: &str, opts: &DaemonOptions) {
     }
     if let Some(pb) = opts.proxy_bypass {
         cmd.env("AGENT_BROWSER_PROXY_BYPASS", pb);
+    }
+    if let Some(pu) = opts.proxy_username {
+        cmd.env("AGENT_BROWSER_PROXY_USERNAME", pu);
+    }
+    if let Some(pp) = opts.proxy_password {
+        cmd.env("AGENT_BROWSER_PROXY_PASSWORD", pp);
     }
     if opts.ignore_https_errors {
         cmd.env("AGENT_BROWSER_IGNORE_HTTPS_ERRORS", "1");

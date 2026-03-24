@@ -2641,9 +2641,9 @@ Options:
   --args <args>              Browser launch args, comma or newline separated (or AGENT_BROWSER_ARGS)
                              e.g., --args "--no-sandbox,--disable-blink-features=AutomationControlled"
   --user-agent <ua>          Custom User-Agent (or AGENT_BROWSER_USER_AGENT)
-  --proxy <server>           Proxy server URL (or AGENT_BROWSER_PROXY)
-                             e.g., --proxy "http://user:pass@127.0.0.1:7890"
-  --proxy-bypass <hosts>     Bypass proxy for these hosts (or AGENT_BROWSER_PROXY_BYPASS)
+  --proxy <server>           Proxy server URL (or AGENT_BROWSER_PROXY, HTTP_PROXY, HTTPS_PROXY, ALL_PROXY)
+                             Supports authenticated proxies: --proxy "http://user:pass@127.0.0.1:7890"
+  --proxy-bypass <hosts>     Bypass proxy for these hosts (or AGENT_BROWSER_PROXY_BYPASS, NO_PROXY)
                              e.g., --proxy-bypass "localhost,*.internal.com"
   --ignore-https-errors      Ignore HTTPS certificate errors
   --allow-file-access        Allow file:// URLs to access local files (Chromium only)
@@ -2721,6 +2721,9 @@ Environment:
   AGENT_BROWSER_CONFIRM_ACTIONS  Action categories requiring confirmation
   AGENT_BROWSER_CONFIRM_INTERACTIVE Enable interactive confirmation prompts
   AGENT_BROWSER_ENGINE           Browser engine: chrome (default), lightpanda
+  HTTP_PROXY / HTTPS_PROXY       Standard proxy env vars (fallback if AGENT_BROWSER_PROXY not set)
+  ALL_PROXY                      SOCKS proxy (fallback for proxy)
+  NO_PROXY                       Bypass proxy for hosts (fallback for proxy-bypass)
   AGENT_BROWSER_SCREENSHOT_DIR   Default screenshot output directory
   AGENT_BROWSER_SCREENSHOT_QUALITY JPEG quality 0-100
   AGENT_BROWSER_SCREENSHOT_FORMAT Screenshot format: png, jpeg

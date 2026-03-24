@@ -187,6 +187,9 @@ pub struct DaemonState {
     /// Key is the origin (scheme + host + port), value is the headers map.
     /// Wrapped in Arc<RwLock<>> so the background Fetch handler can read it.
     pub origin_headers: Arc<RwLock<HashMap<String, HashMap<String, String>>>>,
+    /// Proxy authentication credentials (username, password) for handling
+    /// Fetch.authRequired events from authenticated proxies.
+    pub proxy_credentials: Arc<RwLock<Option<(String, String)>>>,
     /// Background task that processes Fetch.requestPaused events in real-time,
     /// handling domain filtering, route interception, and origin-scoped headers
     /// without deadlocking navigation/evaluate.
@@ -232,6 +235,7 @@ impl DaemonState {
             active_frame_id: None,
             iframe_sessions: HashMap::new(),
             origin_headers: Arc::new(RwLock::new(HashMap::new())),
+            proxy_credentials: Arc::new(RwLock::new(None)),
             fetch_handler_task: None,
             mouse_state: MouseState::default(),
             stream_client: None,
@@ -261,8 +265,9 @@ impl DaemonState {
         }
     }
 
-    /// Start the background task that processes all Fetch.requestPaused events
-    /// in real-time (domain filtering, route interception, origin-scoped headers).
+    /// Start the background task that processes Fetch.requestPaused and
+    /// Fetch.authRequired events in real-time (domain filtering, route
+    /// interception, origin-scoped headers, proxy authentication).
     /// Must be called after the browser is set and events are subscribed.
     fn start_fetch_handler(&mut self) {
         // Abort any existing handler.
@@ -279,10 +284,50 @@ impl DaemonState {
         let domain_filter = self.domain_filter.clone();
         let routes = self.routes.clone();
         let origin_headers = self.origin_headers.clone();
+        let proxy_credentials = self.proxy_credentials.clone();
 
         self.fetch_handler_task = Some(tokio::spawn(async move {
             loop {
                 match rx.recv().await {
+                    Ok(event) if event.method == "Fetch.authRequired" => {
+                        let request_id = event
+                            .params
+                            .get("requestId")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+                        let sid = event.session_id.clone().unwrap_or_default();
+                        let creds = proxy_credentials.read().await;
+                        if let Some((ref user, ref pass)) = *creds {
+                            let _ = client
+                                .send_command(
+                                    "Fetch.continueWithAuth",
+                                    Some(json!({
+                                        "requestId": request_id,
+                                        "authChallengeResponse": {
+                                            "response": "ProvideCredentials",
+                                            "username": user,
+                                            "password": pass,
+                                        }
+                                    })),
+                                    Some(&sid),
+                                )
+                                .await;
+                        } else {
+                            let _ = client
+                                .send_command(
+                                    "Fetch.continueWithAuth",
+                                    Some(json!({
+                                        "requestId": request_id,
+                                        "authChallengeResponse": {
+                                            "response": "CancelAuth",
+                                        }
+                                    })),
+                                    Some(&sid),
+                                )
+                                .await;
+                        }
+                    }
                     Ok(event) if event.method == "Fetch.requestPaused" => {
                         let request_id = event
                             .params
@@ -826,10 +871,12 @@ pub async fn execute_command(cmd: &Value, state: &mut DaemonState) -> Value {
                 // Install domain filter on new pages
                 let df = state.domain_filter.read().await;
                 if let Some(ref filter) = *df {
+                    let has_proxy_creds = state.proxy_credentials.read().await.is_some();
                     let _ = network::install_domain_filter(
                         &mgr.client,
                         &attach.session_id,
                         &filter.allowed_domains,
+                        has_proxy_creds,
                     )
                     .await;
                 }
@@ -1141,6 +1188,16 @@ async fn auto_launch(state: &mut DaemonState) -> Result<(), String> {
     let options = launch_options_from_env();
     let engine = env::var("AGENT_BROWSER_ENGINE").ok();
 
+    // Store proxy credentials for Fetch.authRequired handling
+    let has_proxy_auth = options.proxy_username.is_some() && options.proxy_password.is_some();
+    if has_proxy_auth {
+        let mut creds = state.proxy_credentials.write().await;
+        *creds = Some((
+            options.proxy_username.clone().unwrap_or_default(),
+            options.proxy_password.clone().unwrap_or_default(),
+        ));
+    }
+
     if let Ok(cdp) = env::var("AGENT_BROWSER_CDP") {
         let mgr = BrowserManager::connect_cdp(&cdp).await?;
         state.reset_input_state();
@@ -1168,6 +1225,26 @@ async fn auto_launch(state: &mut DaemonState) -> Result<(), String> {
     state.subscribe_to_browser_events();
     state.start_fetch_handler();
     state.update_stream_client().await;
+
+    // Enable Fetch with handleAuthRequests for proxy authentication
+    if has_proxy_auth {
+        if let Some(ref mgr) = state.browser {
+            if let Ok(session_id) = mgr.active_session_id() {
+                let _ = mgr
+                    .client
+                    .send_command(
+                        "Fetch.enable",
+                        Some(json!({
+                            "handleAuthRequests": true,
+                            "patterns": [{ "urlPattern": "*" }]
+                        })),
+                        Some(session_id),
+                    )
+                    .await;
+            }
+        }
+    }
+
     try_auto_restore_state(state).await;
     Ok(())
 }
@@ -1189,6 +1266,8 @@ fn launch_options_from_env() -> LaunchOptions {
         executable_path: env::var("AGENT_BROWSER_EXECUTABLE_PATH").ok(),
         proxy: env::var("AGENT_BROWSER_PROXY").ok(),
         proxy_bypass: env::var("AGENT_BROWSER_PROXY_BYPASS").ok(),
+        proxy_username: env::var("AGENT_BROWSER_PROXY_USERNAME").ok(),
+        proxy_password: env::var("AGENT_BROWSER_PROXY_PASSWORD").ok(),
         profile: env::var("AGENT_BROWSER_PROFILE").ok(),
         allow_file_access: env::var("AGENT_BROWSER_ALLOW_FILE_ACCESS")
             .map(|v| v == "1" || v == "true")
@@ -1392,6 +1471,18 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
             .and_then(|v| v.get("bypass"))
             .and_then(|v| v.as_str())
             .map(String::from),
+        proxy_username: cmd
+            .get("proxy")
+            .and_then(|v| v.get("username"))
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or_else(|| env::var("AGENT_BROWSER_PROXY_USERNAME").ok()),
+        proxy_password: cmd
+            .get("proxy")
+            .and_then(|v| v.get("password"))
+            .and_then(|v| v.as_str())
+            .map(String::from)
+            .or_else(|| env::var("AGENT_BROWSER_PROXY_PASSWORD").ok()),
         user_agent: cmd
             .get("userAgent")
             .and_then(|v| v.as_str())
@@ -1410,6 +1501,16 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
             .map(String::from),
     };
 
+    // Store proxy credentials for Fetch.authRequired handling
+    let has_proxy_auth = options.proxy_username.is_some() && options.proxy_password.is_some();
+    if has_proxy_auth {
+        let mut creds = state.proxy_credentials.write().await;
+        *creds = Some((
+            options.proxy_username.clone().unwrap_or_default(),
+            options.proxy_password.clone().unwrap_or_default(),
+        ));
+    }
+
     if let Some(ref domains) = cmd
         .get("allowedDomains")
         .and_then(|v| v.as_str())
@@ -1425,6 +1526,27 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
     state.start_fetch_handler();
     state.update_stream_client().await;
 
+    // Enable Fetch with handleAuthRequests when proxy credentials are present.
+    // This must happen before navigation so the Fetch.authRequired handler can
+    // respond to proxy 407 challenges.
+    if has_proxy_auth {
+        if let Some(ref mgr) = state.browser {
+            if let Ok(session_id) = mgr.active_session_id() {
+                let _ = mgr
+                    .client
+                    .send_command(
+                        "Fetch.enable",
+                        Some(json!({
+                            "handleAuthRequests": true,
+                            "patterns": [{ "urlPattern": "*" }]
+                        })),
+                        Some(session_id),
+                    )
+                    .await;
+            }
+        }
+    }
+
     {
         let df = state.domain_filter.read().await;
         if let Some(ref filter) = *df {
@@ -1434,6 +1556,7 @@ async fn handle_launch(cmd: &Value, state: &mut DaemonState) -> Result<Value, St
                         &mgr.client,
                         session_id,
                         &filter.allowed_domains,
+                        has_proxy_auth,
                     )
                     .await;
                     network::sanitize_existing_pages(&mgr.client, &mgr.pages_list(), filter).await;
@@ -1590,12 +1713,13 @@ async fn handle_navigate(cmd: &Value, state: &mut DaemonState) -> Result<Value, 
             // routes already enabled it. Wildcard ensures we see all requests.
             if first_origin_header {
                 let session_id = mgr.active_session_id()?.to_string();
+                let has_proxy_creds = state.proxy_credentials.read().await.is_some();
+                let mut params = json!({ "patterns": [{ "urlPattern": "*" }] });
+                if has_proxy_creds {
+                    params["handleAuthRequests"] = json!(true);
+                }
                 mgr.client
-                    .send_command(
-                        "Fetch.enable",
-                        Some(json!({ "patterns": [{ "urlPattern": "*" }] })),
-                        Some(&session_id),
-                    )
+                    .send_command("Fetch.enable", Some(params), Some(&session_id))
                     .await?;
             }
         }
@@ -5717,11 +5841,24 @@ async fn build_fetch_patterns(state: &DaemonState) -> Vec<Value> {
         .collect();
     let has_domain_filter = state.domain_filter.read().await.is_some();
     let has_origin_headers = !state.origin_headers.read().await.is_empty();
-    if (has_domain_filter || has_origin_headers) && !patterns.iter().any(|p| p["urlPattern"] == "*")
+    let has_proxy_creds = state.proxy_credentials.read().await.is_some();
+    if (has_domain_filter || has_origin_headers || has_proxy_creds)
+        && !patterns.iter().any(|p| p["urlPattern"] == "*")
     {
         patterns.push(json!({ "urlPattern": "*" }));
     }
     patterns
+}
+
+/// Build the full Fetch.enable params object, including `handleAuthRequests`
+/// when proxy credentials are configured.
+async fn build_fetch_enable_params(state: &DaemonState, patterns: Vec<Value>) -> Value {
+    let has_proxy_creds = state.proxy_credentials.read().await.is_some();
+    if has_proxy_creds {
+        json!({ "patterns": patterns, "handleAuthRequests": true })
+    } else {
+        json!({ "patterns": patterns })
+    }
 }
 
 async fn handle_route(cmd: &Value, state: &mut DaemonState) -> Result<Value, String> {
@@ -5765,12 +5902,9 @@ async fn handle_route(cmd: &Value, state: &mut DaemonState) -> Result<Value, Str
     }
 
     let patterns = build_fetch_patterns(state).await;
+    let params = build_fetch_enable_params(state, patterns).await;
     mgr.client
-        .send_command(
-            "Fetch.enable",
-            Some(json!({ "patterns": patterns })),
-            Some(&session_id),
-        )
+        .send_command("Fetch.enable", Some(params), Some(&session_id))
         .await?;
 
     Ok(json!({ "routed": url_pattern }))
@@ -5800,12 +5934,9 @@ async fn handle_unroute(cmd: &Value, state: &mut DaemonState) -> Result<Value, S
             .send_command("Fetch.disable", None, Some(&session_id))
             .await?;
     } else {
+        let params = build_fetch_enable_params(state, patterns).await;
         mgr.client
-            .send_command(
-                "Fetch.enable",
-                Some(json!({ "patterns": patterns })),
-                Some(&session_id),
-            )
+            .send_command("Fetch.enable", Some(params), Some(&session_id))
             .await?;
     }
 
