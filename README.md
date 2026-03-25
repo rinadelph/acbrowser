@@ -590,8 +590,32 @@ This is useful for multimodal AI models that can reason about visual layout, unl
 | `--confirm-actions <list>` | Action categories requiring confirmation (or `AGENT_BROWSER_CONFIRM_ACTIONS` env) |
 | `--confirm-interactive` | Interactive confirmation prompts; auto-denies if stdin is not a TTY (or `AGENT_BROWSER_CONFIRM_INTERACTIVE` env) |
 | `--engine <name>` | Browser engine: `chrome` (default), `lightpanda` (or `AGENT_BROWSER_ENGINE` env) |
+| `--observe [port]` | Enable observability dashboard (default port: 9223) |
 | `--config <path>` | Use a custom config file (or `AGENT_BROWSER_CONFIG` env) |
 | `--debug` | Debug output |
+
+## Observability Dashboard
+
+Monitor agent-browser sessions in real time with a local web dashboard showing a live viewport and command activity feed.
+
+```bash
+# Install the dashboard (one time)
+agent-browser dashboard install
+
+# Run any command with --observe to enable the dashboard
+agent-browser --observe open example.com
+# Open http://localhost:9223 in your browser
+
+# Use a custom port
+agent-browser --observe 9224 open example.com
+```
+
+The dashboard connects via WebSocket to the daemon's stream port and displays:
+- **Live viewport** -- real-time JPEG frames from the browser
+- **Activity feed** -- chronological command/result stream with timing and expandable details
+- **Console output** -- browser console messages (log, warn, error)
+
+Install the dashboard once with `dashboard install` -- it downloads to `~/.agent-browser/dashboard/` and is served directly by the daemon.
 
 ## Configuration
 

@@ -1,8 +1,10 @@
 use serde_json::{json, Value};
 use std::net::SocketAddr;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpListener;
 use tokio::sync::{broadcast, Mutex, Notify, RwLock};
 use tokio_tungstenite::tungstenite::Message;
@@ -46,6 +48,7 @@ pub struct StreamServer {
     screencasting: Arc<Mutex<bool>>,
     viewport_width: Arc<Mutex<u32>>,
     viewport_height: Arc<Mutex<u32>>,
+    dashboard_dir: Option<PathBuf>,
 }
 
 impl StreamServer {
@@ -68,6 +71,16 @@ impl StreamServer {
     ) -> Result<(Self, Arc<RwLock<Option<Arc<CdpClient>>>>), String> {
         let client_slot = Arc::new(RwLock::new(None::<Arc<CdpClient>>));
         Self::start_inner(preferred_port, client_slot, session_id).await
+    }
+
+    /// Resolve the dashboard directory if it exists.
+    fn resolve_dashboard_dir() -> Option<PathBuf> {
+        let dir = dirs::home_dir()?.join(".agent-browser").join("dashboard");
+        if dir.join("index.html").exists() {
+            Some(dir)
+        } else {
+            None
+        }
     }
 
     /// Notify the background CDP listener that the client has changed (browser launched/closed).
@@ -114,6 +127,8 @@ impl StreamServer {
             .map_err(|e| format!("Failed to get stream address: {}", e))?;
         let port = actual_addr.port();
 
+        let dashboard_dir = Self::resolve_dashboard_dir();
+
         let (frame_tx, _) = broadcast::channel::<String>(64);
         let client_count = Arc::new(Mutex::new(0usize));
         let client_notify = Arc::new(Notify::new());
@@ -129,9 +144,9 @@ impl StreamServer {
         let screencasting_clone = screencasting.clone();
         let cdp_session_clone = cdp_session_id.clone();
 
-        // WebSocket accept loop
         let vw_clone = viewport_width.clone();
         let vh_clone = viewport_height.clone();
+        let dashboard_dir_clone = dashboard_dir.clone();
         tokio::spawn(async move {
             accept_loop(
                 listener,
@@ -143,6 +158,7 @@ impl StreamServer {
                 cdp_session_clone,
                 vw_clone,
                 vh_clone,
+                dashboard_dir_clone,
             )
             .await;
         });
@@ -181,6 +197,7 @@ impl StreamServer {
                 screencasting,
                 viewport_width,
                 viewport_height,
+                dashboard_dir,
             },
             client_slot,
         ))
@@ -239,6 +256,55 @@ impl StreamServer {
         });
         let _ = self.frame_tx.send(msg.to_string());
     }
+
+    /// Broadcast a command event when a command begins executing.
+    pub fn broadcast_command(&self, action: &str, id: &str, params: &Value) {
+        let msg = json!({
+            "type": "command",
+            "action": action,
+            "id": id,
+            "params": params,
+            "timestamp": timestamp_ms(),
+        });
+        let _ = self.frame_tx.send(msg.to_string());
+    }
+
+    /// Broadcast a result event after a command finishes executing.
+    pub fn broadcast_result(
+        &self,
+        id: &str,
+        action: &str,
+        success: bool,
+        data: &Value,
+        duration_ms: u64,
+    ) {
+        let msg = json!({
+            "type": "result",
+            "id": id,
+            "action": action,
+            "success": success,
+            "data": data,
+            "duration_ms": duration_ms,
+            "timestamp": timestamp_ms(),
+        });
+        let _ = self.frame_tx.send(msg.to_string());
+    }
+
+    /// Broadcast a console event from the browser.
+    pub fn broadcast_console(&self, level: &str, text: &str) {
+        let msg = json!({
+            "type": "console",
+            "level": level,
+            "text": text,
+            "timestamp": timestamp_ms(),
+        });
+        let _ = self.frame_tx.send(msg.to_string());
+    }
+
+    /// Whether the dashboard directory is available.
+    pub fn has_dashboard(&self) -> bool {
+        self.dashboard_dir.is_some()
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -252,9 +318,11 @@ async fn accept_loop(
     cdp_session_id: Arc<RwLock<Option<String>>>,
     viewport_width: Arc<Mutex<u32>>,
     viewport_height: Arc<Mutex<u32>>,
+    dashboard_dir: Option<PathBuf>,
 ) {
+    let dashboard_dir = dashboard_dir.map(Arc::from);
     while let Ok((stream, addr)) = listener.accept().await {
-        let frame_rx = frame_tx.subscribe();
+        let frame_tx = frame_tx.clone();
         let client_count = client_count.clone();
         let client_slot = client_slot.clone();
         let client_notify = client_notify.clone();
@@ -262,12 +330,13 @@ async fn accept_loop(
         let cdp_session_id = cdp_session_id.clone();
         let vw = viewport_width.clone();
         let vh = viewport_height.clone();
+        let dd = dashboard_dir.clone();
 
         tokio::spawn(async move {
-            handle_ws_client(
+            handle_connection(
                 stream,
                 addr,
-                frame_rx,
+                frame_tx,
                 client_count,
                 client_slot,
                 client_notify,
@@ -275,9 +344,57 @@ async fn accept_loop(
                 cdp_session_id,
                 vw,
                 vh,
+                dd,
             )
             .await;
         });
+    }
+}
+
+/// Peek at the TCP stream to dispatch between WebSocket upgrade and plain HTTP.
+#[allow(clippy::too_many_arguments)]
+async fn handle_connection(
+    stream: tokio::net::TcpStream,
+    addr: SocketAddr,
+    frame_tx: broadcast::Sender<String>,
+    client_count: Arc<Mutex<usize>>,
+    client_slot: Arc<RwLock<Option<Arc<CdpClient>>>>,
+    client_notify: Arc<Notify>,
+    screencasting: Arc<Mutex<bool>>,
+    cdp_session_id: Arc<RwLock<Option<String>>>,
+    viewport_width: Arc<Mutex<u32>>,
+    viewport_height: Arc<Mutex<u32>>,
+    dashboard_dir: Option<Arc<PathBuf>>,
+) {
+    let mut buf = [0u8; 4096];
+    let n = match stream.peek(&mut buf).await {
+        Ok(n) => n,
+        Err(_) => return,
+    };
+    let request = String::from_utf8_lossy(&buf[..n]);
+
+    if request.contains("Upgrade: websocket") || request.contains("upgrade: websocket") {
+        let frame_rx = frame_tx.subscribe();
+        handle_ws_client(
+            stream,
+            addr,
+            frame_rx,
+            client_count,
+            client_slot,
+            client_notify,
+            screencasting,
+            cdp_session_id,
+            viewport_width,
+            viewport_height,
+        )
+        .await;
+    } else {
+        handle_http_request(
+            stream,
+            &request,
+            dashboard_dir.as_deref().map(|p| p.as_path()),
+        )
+        .await;
     }
 }
 
@@ -607,6 +724,111 @@ async fn handle_client_message(msg: &str, client: &CdpClient, session_id: Option
         }
         _ => {}
     }
+}
+
+/// Serve an HTTP request for dashboard static files or the fallback page.
+async fn handle_http_request(
+    mut stream: tokio::net::TcpStream,
+    request: &str,
+    dashboard_dir: Option<&Path>,
+) {
+    // Consume the peeked data from the stream
+    let content_len = request.len();
+    let mut discard = vec![0u8; content_len];
+    let _ = stream.read_exact(&mut discard).await;
+
+    let path = request
+        .lines()
+        .next()
+        .and_then(|line| line.split_whitespace().nth(1))
+        .unwrap_or("/");
+
+    let (status, content_type, body) = match dashboard_dir {
+        Some(dir) => serve_static_file(dir, path),
+        None => (
+            "200 OK",
+            "text/html; charset=utf-8",
+            DASHBOARD_NOT_INSTALLED_HTML.to_string(),
+        ),
+    };
+
+    let response = format!(
+        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nConnection: close\r\nAccess-Control-Allow-Origin: *\r\n\r\n",
+        status,
+        content_type,
+        body.len()
+    );
+    let _ = stream.write_all(response.as_bytes()).await;
+    let _ = stream.write_all(body.as_bytes()).await;
+}
+
+fn serve_static_file(dir: &Path, url_path: &str) -> (&'static str, &'static str, String) {
+    let clean = url_path.trim_start_matches('/');
+    let file_path = if clean.is_empty() {
+        dir.join("index.html")
+    } else {
+        let joined = dir.join(clean);
+        if joined.is_file() {
+            joined
+        } else {
+            // SPA fallback
+            dir.join("index.html")
+        }
+    };
+
+    match std::fs::read_to_string(&file_path) {
+        Ok(content) => {
+            let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+            let ct = match ext {
+                "html" => "text/html; charset=utf-8",
+                "js" => "application/javascript; charset=utf-8",
+                "css" => "text/css; charset=utf-8",
+                "json" => "application/json; charset=utf-8",
+                "svg" => "image/svg+xml",
+                "png" => "image/png",
+                "ico" => "image/x-icon",
+                _ => "application/octet-stream",
+            };
+            ("200 OK", ct, content)
+        }
+        Err(_) => (
+            "404 Not Found",
+            "text/html; charset=utf-8",
+            "<html><body><p>404 Not Found</p></body></html>".to_string(),
+        ),
+    }
+}
+
+const DASHBOARD_NOT_INSTALLED_HTML: &str = r#"<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><title>agent-browser</title>
+<style>
+body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #0a0a0a; color: #e5e5e5; }
+.card { text-align: center; max-width: 400px; }
+code { background: #262626; padding: 2px 8px; border-radius: 4px; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="card">
+<h2>Dashboard not installed</h2>
+<p>Run <code>agent-browser dashboard install</code> to download the dashboard.</p>
+</div>
+</body>
+</html>"#;
+
+/// Public accessor for the dashboard installation directory.
+pub fn get_dashboard_dir() -> PathBuf {
+    dirs::home_dir()
+        .unwrap_or_else(|| PathBuf::from("."))
+        .join(".agent-browser")
+        .join("dashboard")
+}
+
+fn timestamp_ms() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 pub fn is_allowed_origin(origin: Option<&str>) -> bool {

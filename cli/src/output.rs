@@ -2352,6 +2352,28 @@ Examples:
 "##
         }
 
+        // === Dashboard ===
+        "dashboard" => {
+            r##"
+agent-browser dashboard - Observability dashboard
+
+Usage: agent-browser dashboard install
+
+Downloads and installs the observability dashboard, a local web UI that
+shows a live browser viewport and command activity feed.
+
+Subcommands:
+  install              Download and install the dashboard to ~/.agent-browser/dashboard/
+
+After installing, use --observe to start a session with the dashboard:
+  agent-browser --observe open example.com
+  # Then open http://localhost:9223 in your browser
+
+Examples:
+  agent-browser dashboard install
+"##
+        }
+
         // === Connect ===
         "connect" => {
             r##"
@@ -2659,6 +2681,7 @@ Setup:
   install                    Install browser binaries
   install --with-deps        Also install system dependencies (Linux)
   upgrade                    Upgrade to the latest version
+  dashboard install          Install the observability dashboard
 
 Snapshot Options:
   -i, --interactive          Only interactive elements
@@ -2708,6 +2731,7 @@ Options:
   --confirm-actions <list>   Categories requiring confirmation (or AGENT_BROWSER_CONFIRM_ACTIONS)
   --confirm-interactive      Interactive confirmation prompts; auto-denies if stdin is not a TTY (or AGENT_BROWSER_CONFIRM_INTERACTIVE)
   --engine <name>            Browser engine: chrome (default), lightpanda (or AGENT_BROWSER_ENGINE)
+  --observe [port]           Enable observability dashboard (default port: 9223)
   --config <path>            Use a custom config file (or AGENT_BROWSER_CONFIG env)
   --debug                    Debug output
   --version, -V              Show version
@@ -2792,6 +2816,7 @@ Examples:
   agent-browser --color-scheme dark open example.com  # Dark mode
   agent-browser --profile ~/.myapp open example.com    # Persistent profile
   agent-browser --session-name myapp open example.com  # Auto-save/restore state
+  agent-browser --observe open example.com             # Live dashboard at localhost:9223
 
 Command Chaining:
   Chain commands with && in a single shell call (browser persists via daemon):

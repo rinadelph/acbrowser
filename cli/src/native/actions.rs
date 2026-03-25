@@ -554,6 +554,9 @@ impl DaemonState {
                                     .join(" ");
                                 self.event_tracker
                                     .add_console(&console_event.call_type, &text);
+                                if let Some(ref server) = self.stream_server {
+                                    server.broadcast_console(&console_event.call_type, &text);
+                                }
                             }
                         }
                         "Runtime.exceptionThrown" => {
@@ -833,6 +836,12 @@ pub async fn execute_command(cmd: &Value, state: &mut DaemonState) -> Value {
         .and_then(|v| v.as_str())
         .unwrap_or("")
         .to_string();
+
+    let cmd_start = std::time::Instant::now();
+
+    if let Some(ref server) = state.stream_server {
+        server.broadcast_command(action, &id, cmd);
+    }
 
     // Drain pending CDP events (console, errors, screencast frames, target lifecycle)
     let DrainedEvents {
@@ -1207,6 +1216,16 @@ pub async fn execute_command(cmd: &Value, state: &mut DaemonState) -> Value {
                 );
             }
         }
+    }
+
+    if let Some(ref server) = state.stream_server {
+        let duration_ms = cmd_start.elapsed().as_millis() as u64;
+        let success = resp
+            .get("status")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| s == "success");
+        let data = resp.get("data").cloned().unwrap_or(Value::Null);
+        server.broadcast_result(&id, action, success, &data, duration_ms);
     }
 
     resp

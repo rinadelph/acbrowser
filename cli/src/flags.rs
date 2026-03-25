@@ -298,6 +298,7 @@ pub struct Flags {
     pub screenshot_quality: Option<u32>,
     pub screenshot_format: Option<String>,
     pub idle_timeout: Option<String>, // Canonical milliseconds string for AGENT_BROWSER_IDLE_TIMEOUT_MS
+    pub observe: Option<u16>,
 
     // Track which launch-time options were explicitly passed via CLI
     // (as opposed to being set only via environment variables)
@@ -429,6 +430,9 @@ pub fn parse_flags(args: &[String]) -> Flags {
             "AGENT_BROWSER_IDLE_TIMEOUT_MS",
         )
         .or(config.idle_timeout),
+        observe: env::var("AGENT_BROWSER_STREAM_PORT")
+            .ok()
+            .and_then(|s| s.parse().ok()),
         cli_executable_path: false,
         cli_extensions: false,
         cli_profile: false,
@@ -703,6 +707,18 @@ pub fn parse_flags(args: &[String]) -> Flags {
                     i += 1;
                 }
             }
+            "--observe" => {
+                if let Some(s) = args.get(i + 1) {
+                    if let Ok(port) = s.parse::<u16>() {
+                        flags.observe = Some(port);
+                        i += 1;
+                    } else {
+                        flags.observe = Some(9223);
+                    }
+                } else {
+                    flags.observe = Some(9223);
+                }
+            }
             "--config" => {
                 // Already handled by load_config(); skip the value
                 i += 1;
@@ -777,6 +793,15 @@ pub fn clean_args(args: &[String]) -> Vec<String> {
         if GLOBAL_BOOL_FLAGS.contains(&arg.as_str()) {
             if let Some(v) = args.get(i + 1) {
                 if matches!(v.as_str(), "true" | "false") {
+                    i += 1;
+                }
+            }
+            i += 1;
+            continue;
+        }
+        if arg == "--observe" {
+            if let Some(v) = args.get(i + 1) {
+                if v.parse::<u16>().is_ok() {
                     i += 1;
                 }
             }

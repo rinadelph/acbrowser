@@ -267,6 +267,23 @@ fn main() {
         return;
     }
 
+    // Handle dashboard subcommand
+    if clean.first().map(|s| s.as_str()) == Some("dashboard") {
+        match clean.get(1).map(|s| s.as_str()) {
+            Some("install") => {
+                install::run_dashboard_install();
+                return;
+            }
+            _ => {
+                eprintln!(
+                    "{} Unknown dashboard subcommand. Usage: agent-browser dashboard install",
+                    color::error_indicator()
+                );
+                exit(1);
+            }
+        }
+    }
+
     // Handle session separately (doesn't need daemon)
     if clean.first().map(|s| s.as_str()) == Some("session") {
         run_session(&clean, &flags.session, flags.json);
@@ -363,6 +380,11 @@ fn main() {
         return;
     }
 
+    // Set stream port env var when --observe is used so the daemon enables streaming.
+    if let Some(port) = flags.observe {
+        env::set_var("AGENT_BROWSER_STREAM_PORT", port.to_string());
+    }
+
     // Parse proxy URL to separate server from credentials for the daemon.
     let (proxy_server, proxy_username, proxy_password) = if let Some(ref proxy_str) = flags.proxy {
         let parsed = parse_proxy(proxy_str);
@@ -408,6 +430,12 @@ fn main() {
             exit(1);
         }
     };
+
+    if let Some(port) = flags.observe {
+        if !flags.json {
+            eprintln!("-> Observing at http://localhost:{}", port);
+        }
+    }
 
     // Warn if launch-time options were explicitly passed via CLI but daemon was already running
     // Only warn about flags that were passed on the command line, not those set via environment

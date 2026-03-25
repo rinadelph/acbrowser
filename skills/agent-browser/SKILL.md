@@ -700,6 +700,24 @@ Supported engines:
 
 Lightpanda does not support `--extension`, `--profile`, `--state`, or `--allow-file-access`. Install Lightpanda from https://lightpanda.io/docs/open-source/installation.
 
+## Observability Dashboard
+
+Use `--observe` to enable a live web dashboard for debugging sessions. It shows the browser viewport, command activity, and console output in real time.
+
+```bash
+# Install the dashboard once
+agent-browser dashboard install
+
+# Start a session with the dashboard enabled
+agent-browser --observe open example.com
+# Open http://localhost:9223 in your browser
+
+# Custom port
+agent-browser --observe 9224 open example.com
+```
+
+The dashboard is opt-in and served from `~/.agent-browser/dashboard/`. It connects via WebSocket on the stream port.
+
 ## Ready-to-Use Templates
 
 | Template                                                                 | Description                         |
