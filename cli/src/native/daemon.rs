@@ -35,7 +35,11 @@ pub async fn run_daemon(session: &str) {
                 libc::dup2(fd, 2);
                 libc::close(fd);
             }
-            let _ = writeln!(std::io::stderr(), "[daemon] Debug logging started for session: {}", session);
+            let _ = writeln!(
+                std::io::stderr(),
+                "[daemon] Debug logging started for session: {}",
+                session
+            );
         }
     }
 

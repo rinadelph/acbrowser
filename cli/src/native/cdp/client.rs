@@ -97,7 +97,8 @@ impl CdpClient {
                                 .as_ref()
                                 .map(|f| format!("code={}, reason={}", f.code, f.reason))
                                 .unwrap_or_else(|| "no frame".to_string());
-                            let _ = writeln!(std::io::stderr(), "[cdp] WebSocket Close: {}", reason);
+                            let _ =
+                                writeln!(std::io::stderr(), "[cdp] WebSocket Close: {}", reason);
                         }
                         break;
                     }
