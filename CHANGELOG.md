@@ -1,5 +1,17 @@
 # agent-browser
 
+## 0.23.4
+
+<!-- release:start -->
+### Bug Fixes
+
+- Fixed **daemon hang on Linux** caused by a `waitpid(-1)` race condition in the SIGCHLD handler that stole exit statuses from Rust's `Child` handles, leaving the daemon in a broken state. Replaced the global signal handler with targeted crash detection via the existing drain interval (#1098)
+
+### Contributors
+
+- @ctate
+<!-- release:end -->
+
 ## 0.23.3
 
 ### Bug Fixes
