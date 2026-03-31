@@ -64,10 +64,17 @@ Wrap the release notes (everything between the `## <version>` heading and the pr
 ### Bug Fixes
 
 - Fixed **baz** not working when qux is enabled (#1235)
+
+### Contributors
+
+- @ctate
+- @somecontributor
 <!-- release:end -->
 
 ## 0.23.3
 ```
+
+Include a `### Contributors` section listing the GitHub usernames (with `@` prefix) of everyone who contributed to the release. Check the git log between the previous tag and HEAD to find them.
 
 Do not prefix entries with commit hashes. Do not use the changesets `### Patch Changes` / `### Minor Changes` headings. Use descriptive section names instead.
 
