@@ -72,7 +72,7 @@ Do not prefix entries with commit hashes. Do not use the changesets `### Patch C
 The docs changelog at `docs/src/app/changelog/page.mdx` mirrors `CHANGELOG.md` but uses a slightly different format. Each entry uses:
 
 - A `v` prefix on the version (e.g. `## v0.24.0`)
-- A date line: `<p className="text-[#888] text-sm">March 2026</p>`
+- A date line with the full date: `<p className="text-[#888] text-sm">March 30, 2026</p>`
 - A `---` separator between entries
 
 Match the existing style in that file.
