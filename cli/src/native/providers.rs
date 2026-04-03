@@ -1,6 +1,6 @@
 //! Browser provider connections for remote CDP sessions.
 //!
-//! Supports Browserbase, Browserless, Browser Use, and Kernel providers.
+//! Supports AgentCore, Browserbase, Browserless, Browser Use, and Kernel providers.
 //! Each provider returns a CDP WebSocket URL for connecting via BrowserManager.
 
 use serde_json::{json, Value};

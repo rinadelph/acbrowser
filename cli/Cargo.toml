@@ -11,7 +11,7 @@ keywords = ["browser", "automation", "ai", "cdp", "chrome"]
 categories = ["command-line-utilities", "web-programming"]
 
 [features]
-default = []
+default = ["agentcore"]
 agentcore = ["hmac", "hex", "chrono", "urlencoding"]
 
 [dependencies]
