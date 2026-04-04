@@ -583,6 +583,13 @@ impl DaemonState {
             if let Some(ref mgr) = self.browser {
                 let _ = mgr
                     .client
+                    .send_command_no_params(
+                        "Runtime.runIfWaitingForDebugger",
+                        Some(iframe_sid.as_str()),
+                    )
+                    .await;
+                let _ = mgr
+                    .client
                     .send_command_no_params("DOM.enable", Some(iframe_sid.as_str()))
                     .await;
                 let _ = mgr
