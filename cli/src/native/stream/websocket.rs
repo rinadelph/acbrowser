@@ -150,8 +150,7 @@ async fn handle_connection(
     } else {
         handle_http_request(
             stream,
-            &request,
-            n,
+            &buf[..n],
             dashboard_dir.as_deref().map(|p| p.as_path()),
             &last_tabs,
             &last_engine,

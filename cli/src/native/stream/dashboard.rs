@@ -10,7 +10,7 @@ use crate::install::get_dashboard_dir;
 
 use super::chat::{chat_status_json, handle_chat_request, handle_models_request};
 use super::discovery::discover_sessions;
-use super::http::{extract_http_body, serve_static_file, CORS_HEADERS, DASHBOARD_NOT_INSTALLED_HTML};
+use super::http::{serve_static_file, CORS_HEADERS, DASHBOARD_NOT_INSTALLED_HTML};
 
 pub async fn run_dashboard_server(port: u16) {
     let addr = format!("127.0.0.1:{}", port);
@@ -137,31 +137,48 @@ async fn handle_dashboard_connection(
 
 async fn read_post_body(stream: &mut tokio::net::TcpStream, initial: &[u8], n: usize) -> String {
     use tokio::io::AsyncReadExt;
-    let header_str = String::from_utf8_lossy(&initial[..n]);
-    let body = extract_http_body(&header_str).unwrap_or("").to_string();
 
-    if !body.is_empty() {
-        return body;
-    }
+    let header_end = initial[..n]
+        .windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|p| p + 4)
+        .or_else(|| initial[..n].windows(2).position(|w| w == b"\n\n").map(|p| p + 2));
+    let Some(header_end) = header_end else {
+        return String::new();
+    };
 
-    let cl = header_str
+    let header_str = String::from_utf8_lossy(&initial[..header_end]);
+    let content_length: usize = header_str
         .lines()
         .find_map(|l| {
-            let lower = l.to_lowercase();
-            lower
-                .strip_prefix("content-length:")
-                .map(|v| v.trim().parse::<usize>().unwrap_or(0))
+            if l.len() > 16 && l[..16].eq_ignore_ascii_case("content-length: ") {
+                l[16..].trim().parse().ok()
+            } else {
+                let lower = l.to_lowercase();
+                lower.strip_prefix("content-length:").and_then(|v| v.trim().parse().ok())
+            }
         })
         .unwrap_or(0);
 
-    if cl > 0 {
-        let mut remaining = vec![0u8; cl];
-        if stream.read_exact(&mut remaining).await.is_ok() {
-            return String::from_utf8_lossy(&remaining).to_string();
+    if content_length == 0 {
+        return String::new();
+    }
+
+    let read_body = &initial[header_end..n];
+    let already_read = read_body.len().min(content_length);
+
+    let mut body = Vec::with_capacity(content_length);
+    body.extend_from_slice(&read_body[..already_read]);
+
+    let remaining = content_length - already_read;
+    if remaining > 0 {
+        let mut rest = vec![0u8; remaining];
+        if stream.read_exact(&mut rest).await.is_ok() {
+            body.extend_from_slice(&rest);
         }
     }
 
-    String::new()
+    String::from_utf8(body).unwrap_or_default()
 }
 
 async fn exec_cli(body: &str) -> Result<String, String> {

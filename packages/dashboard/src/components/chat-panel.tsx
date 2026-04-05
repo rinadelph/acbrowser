@@ -11,7 +11,7 @@ import { ModelSelector } from "@/components/model-selector";
 import { shikiTheme } from "@/lib/shiki-theme";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { ArrowUp, Trash2, ChevronRight } from "lucide-react";
+import { ArrowUp, Trash2, ChevronRight, ImagePlus, X, Loader } from "lucide-react";
 
 const chatComponents = {
   h1: ({ node: _node, ...props }: any) => <p className="font-bold" {...props} />,
@@ -79,22 +79,43 @@ function truncateOutput(text: string, maxLines = 30): string {
   return lines.slice(0, maxLines).join("\n") + `\n... (${lines.length - maxLines} more lines)`;
 }
 
+function parseOutputObject(raw: unknown): Record<string, unknown> | null {
+  if (typeof raw === "string") {
+    try {
+      const parsed = JSON.parse(raw);
+      if (typeof parsed === "object" && parsed !== null) return parsed;
+    } catch { /* not JSON */ }
+    return null;
+  }
+  if (typeof raw === "object" && raw !== null) return raw as Record<string, unknown>;
+  return null;
+}
+
 function formatOutput(raw: unknown): string | null {
   if (typeof raw === "string") {
     if (!raw.trim()) return null;
-    try {
-      const parsed = JSON.parse(raw);
-      if (typeof parsed === "object" && parsed !== null) {
-        return JSON.stringify(parsed, null, 2);
-      }
-    } catch {
-      // not JSON
+    const obj = parseOutputObject(raw);
+    if (obj) {
+      if (typeof obj.text === "string" && obj.image) return obj.text as string;
+      const { image: _, ...rest } = obj;
+      return JSON.stringify(rest, null, 2);
     }
     return raw;
   }
   if (typeof raw === "object" && raw !== null) {
-    return JSON.stringify(raw, null, 2);
+    const r = raw as Record<string, unknown>;
+    if (typeof r.text === "string" && r.image) return r.text as string;
+    const { image: _, ...rest } = r;
+    return JSON.stringify(rest, null, 2);
   }
+  return null;
+}
+
+function extractImageUrl(raw: unknown): string | null {
+  const obj = parseOutputObject(raw);
+  if (!obj) return null;
+  const img = obj.image;
+  if (typeof img === "string" && img.startsWith("data:image/")) return img;
   return null;
 }
 
@@ -106,59 +127,51 @@ function ToolCallBlock({ part }: { part: ToolInvocationPart }) {
   const isRunning = !isDone;
   const output = isDone ? formatOutput(part.output) : null;
   const hasOutput = !!output;
+  const imageUrl = isDone ? extractImageUrl(part.output) : null;
+  const canExpand = hasOutput && !isRunning;
 
   return (
-    <div>
-      <button
-        onClick={() => hasOutput && !isRunning && setExpanded(!expanded)}
+    <div className="space-y-1.5">
+      <div
         className={cn(
-          "group flex items-center gap-1 text-[11px] min-w-0 w-full text-left transition-colors font-mono",
-          isRunning
-            ? "text-muted-foreground"
-            : "text-muted-foreground/60 hover:text-muted-foreground",
-          (!hasOutput || isRunning) && "cursor-default",
+          "rounded-md text-[10px] font-mono overflow-hidden border border-border",
+          canExpand && "cursor-pointer",
         )}
+        onClick={() => canExpand && setExpanded(!expanded)}
       >
-        <span
-          className={cn(
-            "flex items-center gap-1 min-w-0",
-            isRunning && "shimmer-text",
-            !isRunning && "opacity-70",
-          )}
-        >
-          <span className="font-medium shrink-0">
-            {isRunning ? "Running" : "Ran"}
-          </span>
-          <span className="truncate">{command}</span>
-        </span>
-        {hasOutput && !isRunning && (
-          <span
-            className={cn(
-              "shrink-0 transition-opacity",
-              expanded ? "opacity-100" : "opacity-0 group-hover:opacity-100",
-            )}
-          >
+        <div className={cn(
+          "px-2 py-1 flex items-center gap-2",
+          expanded && hasOutput ? "border-b border-border bg-secondary/30" : "bg-secondary/30",
+        )}>
+          {isRunning ? (
+            <Loader className="size-3 shrink-0 animate-spin text-muted-foreground" />
+          ) : (
             <ChevronRight
               className={cn(
-                "h-2.5 w-2.5 transition-transform duration-200",
+                "size-3 shrink-0 text-muted-foreground transition-transform duration-200",
                 expanded && "rotate-90",
               )}
             />
-          </span>
-        )}
-      </button>
-      {expanded && hasOutput && (
-        <div className="mt-1 rounded-md text-[10px] font-mono overflow-hidden border border-border bg-background">
-          <div className="px-2 py-1 border-b border-border flex items-center gap-2 bg-secondary/30">
-            <span className="text-primary/60 select-none">$</span>
-            <span className="text-foreground/80 truncate">{command}</span>
-          </div>
+          )}
+          <span className={cn(
+            "truncate",
+            isRunning ? "text-foreground/80 shimmer-text" : "text-foreground/80",
+          )}>{command}</span>
+        </div>
+        {expanded && hasOutput && (
           <div className="max-h-[300px] overflow-y-auto">
             <pre className="px-2 py-1.5 text-foreground/80 whitespace-pre-wrap break-all leading-relaxed">
               {truncateOutput(output)}
             </pre>
           </div>
-        </div>
+        )}
+      </div>
+      {imageUrl && (
+        <img
+          src={imageUrl}
+          alt="Screenshot"
+          className="rounded-md border border-border max-w-full"
+        />
       )}
     </div>
   );
@@ -178,8 +191,8 @@ function formatTokenCount(n: number): string {
 
 function ContextMeter({ used, total }: { used: number; total: number }) {
   const ratio = Math.min(used / total, 1);
-  const size = 24;
-  const strokeWidth = 2.5;
+  const size = 16;
+  const strokeWidth = 2;
   const r = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * r;
   const offset = circumference * (1 - ratio);
@@ -199,7 +212,7 @@ function ContextMeter({ used, total }: { used: number; total: number }) {
           fill="none"
           stroke="currentColor"
           strokeWidth={strokeWidth}
-          className="text-muted-foreground/10"
+          className="text-border"
         />
         <circle
           cx={size / 2}
@@ -221,9 +234,16 @@ function ContextMeter({ used, total }: { used: number; total: number }) {
 
 const DEFAULT_MODEL = "anthropic/claude-haiku-4.5";
 
+interface PendingImage {
+  file: File;
+  preview: string;
+}
+
 export function ChatPanel() {
   const [input, setInput] = useState("");
   const [errorDismissed, setErrorDismissed] = useState(false);
+  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const defaultModel = useAtomValue(chatModelAtom);
   const [selectedModel, setSelectedModel] = useState<string>(defaultModel || DEFAULT_MODEL);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -268,7 +288,11 @@ export function ChatPanel() {
         if (part.type === "text") total += estimateTokens(part.text);
         else if (isToolPart(part)) {
           if (part.input) total += estimateTokens(JSON.stringify(part.input));
-          if (part.output) total += estimateTokens(typeof part.output === "string" ? part.output : JSON.stringify(part.output));
+          if (part.output) {
+            const raw = typeof part.output === "string" ? part.output : JSON.stringify(part.output);
+            const stripped = raw.replace(/"image"\s*:\s*"data:[^"]*"/g, '"image":"[omitted]"');
+            total += estimateTokens(stripped);
+          }
         }
       }
     }
@@ -314,25 +338,81 @@ export function ChatPanel() {
     }
   }, [messages, isLoading, storageKey]);
 
+  const addImages = useCallback((files: FileList | null) => {
+    if (!files) return;
+    const images = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    setPendingImages((prev) => [
+      ...prev,
+      ...images.map((file) => ({ file, preview: URL.createObjectURL(file) })),
+    ]);
+  }, []);
+
+  const removeImage = useCallback((index: number) => {
+    setPendingImages((prev) => {
+      const next = [...prev];
+      URL.revokeObjectURL(next[index].preview);
+      next.splice(index, 1);
+      return next;
+    });
+  }, []);
+
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      if (!input.trim() || isLoading) return;
-      sendMessage({ text: input });
+      if ((!input.trim() && pendingImages.length === 0) || isLoading) return;
+      const dt = new DataTransfer();
+      for (const img of pendingImages) dt.items.add(img.file);
+      const files = dt.files.length > 0 ? dt.files : undefined;
+      sendMessage({ text: input, files });
       setInput("");
+      setPendingImages((prev) => {
+        for (const p of prev) URL.revokeObjectURL(p.preview);
+        return [];
+      });
     },
-    [input, isLoading, sendMessage],
+    [input, isLoading, sendMessage, pendingImages],
   );
+
+  const lastCompactedId = useRef<string | null>(null);
+  useEffect(() => {
+    if (isLoading || messages.length === 0) return;
+    const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
+    if (!lastAssistant) return;
+    if (lastAssistant.id === lastCompactedId.current) return;
+    const meta = (lastAssistant as any).metadata as
+      | { compacted?: boolean; summary?: string; keepLastN?: number }
+      | undefined;
+    if (!meta?.compacted || typeof meta.keepLastN !== "number") return;
+
+    lastCompactedId.current = lastAssistant.id;
+    const keep = meta.keepLastN;
+    if (keep >= messages.length) return;
+
+    const summaryMsg = {
+      id: `compaction-${Date.now()}`,
+      role: "assistant" as const,
+      parts: [
+        {
+          type: "text" as const,
+          text: `*Earlier messages were summarized to stay within the context window.*`,
+        },
+      ],
+    };
+
+    const kept = messages.slice(messages.length - keep);
+    setMessages([summaryMsg as any, ...kept]);
+  }, [isLoading, messages, setMessages]);
 
   const handleClear = useCallback(() => {
     setMessages([]);
     setErrorDismissed(true);
     sessionStorage.removeItem(storageKey);
+    requestAnimationFrame(() => inputRef.current?.focus());
   }, [setMessages, storageKey]);
 
   const hasVisibleContent = (parts: (typeof messages)[number]["parts"]): boolean => {
     return parts.some(
-      (p) => (p.type === "text" && p.text.length > 0) || isToolPart(p),
+      (p) => (p.type === "text" && p.text.length > 0) || p.type === "file" || isToolPart(p),
     );
   };
 
@@ -377,11 +457,27 @@ export function ChatPanel() {
             return (
               <div key={message.id}>
                 {message.role === "user" ? (
-                  <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
-                    {message.parts
-                      .filter((p): p is Extract<typeof p, { type: "text" }> => p.type === "text")
-                      .map((p) => p.text)
-                      .join("")}
+                  <div className="space-y-1.5">
+                    {message.parts.some((p) => p.type === "file") && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {message.parts
+                          .filter((p): p is Extract<typeof p, { type: "file" }> => p.type === "file")
+                          .map((p, i) => (
+                            <img
+                              key={i}
+                              src={p.url}
+                              alt={p.filename ?? "uploaded image"}
+                              className="max-h-24 rounded-md border border-border object-cover"
+                            />
+                          ))}
+                      </div>
+                    )}
+                    <div className="text-xs text-muted-foreground whitespace-pre-wrap leading-relaxed">
+                      {message.parts
+                        .filter((p): p is Extract<typeof p, { type: "text" }> => p.type === "text")
+                        .map((p) => p.text)
+                        .join("")}
+                    </div>
                   </div>
                 ) : (
                   <div className="space-y-1.5">
@@ -467,6 +563,26 @@ export function ChatPanel() {
 
       <div className="shrink-0 border-t border-border">
         <form onSubmit={handleSubmit}>
+          {pendingImages.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 px-3 pt-2">
+              {pendingImages.map((img, i) => (
+                <div key={img.preview} className="group relative">
+                  <img
+                    src={img.preview}
+                    alt={img.file.name}
+                    className="h-14 rounded-md border border-border object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(i)}
+                    className="absolute -top-1.5 -right-1.5 hidden group-hover:flex size-4 items-center justify-center rounded-full bg-background border border-border text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="size-2.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="px-3 pt-2 pb-1.5">
             <textarea
               ref={inputRef}
@@ -484,6 +600,22 @@ export function ChatPanel() {
                   handleSubmit(e);
                 }
               }}
+              onPaste={(e) => {
+                const items = e.clipboardData?.items;
+                if (!items) return;
+                const imageFiles: File[] = [];
+                for (const item of items) {
+                  if (item.type.startsWith("image/")) {
+                    const file = item.getAsFile();
+                    if (file) imageFiles.push(file);
+                  }
+                }
+                if (imageFiles.length > 0) {
+                  const dt = new DataTransfer();
+                  for (const f of imageFiles) dt.items.add(f);
+                  addImages(dt.files);
+                }
+              }}
               className="w-full bg-transparent text-xs text-foreground outline-none resize-none max-h-24 leading-relaxed placeholder:text-muted-foreground"
             />
           </div>
@@ -493,9 +625,28 @@ export function ChatPanel() {
               {hasMessages && (
                 <ContextMeter used={estimatedTokens} total={contextWindow} />
               )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                className="hidden"
+                onChange={(e) => {
+                  addImages(e.target.files);
+                  e.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="text-muted-foreground hover:text-foreground transition-colors shrink-0 p-1"
+                aria-label="Attach image"
+              >
+                <ImagePlus className="size-3.5" />
+              </button>
               <button
                 type="submit"
-                disabled={isLoading || !input.trim()}
+                disabled={isLoading || (!input.trim() && pendingImages.length === 0)}
                 className="bg-primary text-primary-foreground rounded-full p-1 hover:bg-primary/90 transition-colors disabled:opacity-30 shrink-0"
                 aria-label="Send message"
               >

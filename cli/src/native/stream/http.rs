@@ -17,16 +17,17 @@ pub(super) const CORS_HEADERS: &str = "Access-Control-Allow-Origin: *\r\nAccess-
 
 pub(super) async fn handle_http_request(
     mut stream: tokio::net::TcpStream,
-    request: &str,
-    peeked_len: usize,
+    peeked: &[u8],
     dashboard_dir: Option<&Path>,
     last_tabs: &Arc<RwLock<Vec<Value>>>,
     last_engine: &Arc<RwLock<String>>,
     session_name: &str,
 ) {
+    let peeked_len = peeked.len();
     let mut discard = vec![0u8; peeked_len];
     let _ = stream.read_exact(&mut discard).await;
 
+    let request = String::from_utf8_lossy(peeked);
     let first_line = request.lines().next().unwrap_or("");
     let method = first_line.split_whitespace().next().unwrap_or("GET");
     let path = first_line.split_whitespace().nth(1).unwrap_or("/");
@@ -39,54 +40,56 @@ pub(super) async fn handle_http_request(
         return;
     }
 
-    if method == "POST" && path == "/api/sessions" {
-        let body_str = extract_http_body(request).unwrap_or("");
-        let result = spawn_session(body_str).await;
-        let (status, resp_body) = match result {
-            Ok(msg) => ("200 OK", msg),
-            Err(e) => (
-                "400 Bad Request",
-                format!(
-                    r#"{{"success":false,"error":{}}}"#,
-                    serde_json::to_string(&e).unwrap_or_else(|_| format!("\"{}\"", e))
-                ),
-            ),
-        };
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n{CORS_HEADERS}\r\n",
-            resp_body.len()
-        );
-        let _ = stream.write_all(response.as_bytes()).await;
-        let _ = stream.write_all(resp_body.as_bytes()).await;
-        return;
-    }
+    if method == "POST" {
+        let full_body = read_full_body(&mut stream, peeked).await;
+        let body_str = full_body.as_deref().unwrap_or("");
 
-    if method == "POST" && path == "/api/command" {
-        let body = extract_http_body(request).unwrap_or("");
-        let result = relay_command_to_daemon(session_name, body).await;
-        let (status, resp_body) = match result {
-            Ok(resp) => ("200 OK", resp),
-            Err(e) => (
-                "502 Bad Gateway",
-                format!(
-                    r#"{{"success":false,"error":{}}}"#,
-                    serde_json::to_string(&e).unwrap_or_else(|_| format!("\"{}\"", e))
+        if path == "/api/sessions" {
+            let result = spawn_session(body_str).await;
+            let (status, resp_body) = match result {
+                Ok(msg) => ("200 OK", msg),
+                Err(e) => (
+                    "400 Bad Request",
+                    format!(
+                        r#"{{"success":false,"error":{}}}"#,
+                        serde_json::to_string(&e).unwrap_or_else(|_| format!("\"{}\"", e))
+                    ),
                 ),
-            ),
-        };
-        let response = format!(
-            "HTTP/1.1 {status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n{CORS_HEADERS}\r\n",
-            resp_body.len()
-        );
-        let _ = stream.write_all(response.as_bytes()).await;
-        let _ = stream.write_all(resp_body.as_bytes()).await;
-        return;
-    }
+            };
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n{CORS_HEADERS}\r\n",
+                resp_body.len()
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+            let _ = stream.write_all(resp_body.as_bytes()).await;
+            return;
+        }
 
-    if method == "POST" && path == "/api/chat" {
-        let body = extract_http_body(request).unwrap_or("");
-        handle_chat_request(&mut stream, body).await;
-        return;
+        if path == "/api/command" {
+            let result = relay_command_to_daemon(session_name, body_str).await;
+            let (status, resp_body) = match result {
+                Ok(resp) => ("200 OK", resp),
+                Err(e) => (
+                    "502 Bad Gateway",
+                    format!(
+                        r#"{{"success":false,"error":{}}}"#,
+                        serde_json::to_string(&e).unwrap_or_else(|_| format!("\"{}\"", e))
+                    ),
+                ),
+            };
+            let response = format!(
+                "HTTP/1.1 {status}\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n{CORS_HEADERS}\r\n",
+                resp_body.len()
+            );
+            let _ = stream.write_all(response.as_bytes()).await;
+            let _ = stream.write_all(resp_body.as_bytes()).await;
+            return;
+        }
+
+        if path == "/api/chat" {
+            handle_chat_request(&mut stream, body_str).await;
+            return;
+        }
     }
 
     if method == "GET" && path == "/api/models" {
@@ -143,11 +146,49 @@ pub(super) async fn handle_http_request(
     let _ = stream.write_all(&body).await;
 }
 
-pub(super) fn extract_http_body(request: &str) -> Option<&str> {
-    request
-        .find("\r\n\r\n")
-        .map(|pos| &request[pos + 4..])
-        .or_else(|| request.find("\n\n").map(|pos| &request[pos + 2..]))
+fn find_header_end(buf: &[u8]) -> Option<usize> {
+    buf.windows(4)
+        .position(|w| w == b"\r\n\r\n")
+        .map(|p| p + 4)
+        .or_else(|| buf.windows(2).position(|w| w == b"\n\n").map(|p| p + 2))
+}
+
+fn parse_content_length_bytes(headers: &[u8]) -> Option<usize> {
+    let header_str = std::str::from_utf8(headers).ok()?;
+    for line in header_str.lines() {
+        if line.len() > 16 && line[..16].eq_ignore_ascii_case("content-length: ") {
+            return line[16..].trim().parse().ok();
+        }
+    }
+    None
+}
+
+async fn read_full_body(
+    stream: &mut tokio::net::TcpStream,
+    peeked: &[u8],
+) -> Option<String> {
+    let body_offset = find_header_end(peeked)?;
+    let content_length = parse_content_length_bytes(&peeked[..body_offset])?;
+    if content_length == 0 {
+        return Some(String::new());
+    }
+
+    let peeked_body = &peeked[body_offset..];
+    let peeked_body_len = peeked_body.len().min(content_length);
+
+    let mut body = Vec::with_capacity(content_length);
+    body.extend_from_slice(&peeked_body[..peeked_body_len]);
+
+    let remaining = content_length - peeked_body_len;
+    if remaining > 0 {
+        let mut rest = vec![0u8; remaining];
+        if stream.read_exact(&mut rest).await.is_err() {
+            return String::from_utf8(body).ok();
+        }
+        body.extend_from_slice(&rest);
+    }
+
+    String::from_utf8(body).ok()
 }
 
 pub(super) async fn relay_command_to_daemon(session_name: &str, body: &str) -> Result<String, String> {

@@ -101,9 +101,9 @@ fn get_system_prompt() -> &'static str {
         format!(
             r#"You are an AI assistant that controls a browser through agent-browser. You can execute browser automation commands using the agent_browser tool.
 
-When the user asks you to do something in the browser, use the tool to execute commands. The --json flag is added automatically; do not include it yourself.
+When the user asks you to do something in the browser, use the tool to execute commands.
 
-In the tool command string, pass only the CLI arguments without the `agent-browser` prefix or `--session` flag. For example, to navigate use `open https://example.com`, not `agent-browser open https://example.com`.
+In the tool command string, pass only the CLI arguments without the `agent-browser` prefix or `--session` flag. Do not add `--json`. For example, to navigate use `open https://example.com`, not `agent-browser open https://example.com`.
 
 Keep responses concise. Execute commands proactively when the user's intent is clear.
 
@@ -116,6 +116,207 @@ The following skill references describe agent-browser capabilities in detail. Us
 
 const CHAT_TOOLS: &str = r#"[{"type":"function","function":{"name":"agent_browser","description":"Execute an agent-browser command against the active browser session. The command string contains the CLI arguments (without the 'agent-browser' prefix or session flag).","parameters":{"type":"object","properties":{"command":{"type":"string","description":"The command to execute, e.g. 'open https://google.com' or 'snapshot -i' or 'click @e3'"}},"required":["command"]}}}]"#;
 
+const COMPACT_THRESHOLD_CHARS: usize = 200_000;
+const KEEP_RECENT_MESSAGES: usize = 6;
+
+fn estimate_chars(messages: &[Value]) -> usize {
+    messages
+        .iter()
+        .map(|m| {
+            let content_len = m
+                .get("content")
+                .map(|c| {
+                    if let Some(s) = c.as_str() {
+                        s.len()
+                    } else {
+                        c.to_string().len()
+                    }
+                })
+                .unwrap_or(0);
+            let tc_len = m
+                .get("tool_calls")
+                .map(|t| t.to_string().len())
+                .unwrap_or(0);
+            content_len + tc_len
+        })
+        .sum()
+}
+
+fn find_safe_split(messages: &[Value], keep_recent: usize) -> usize {
+    if messages.len() <= keep_recent + 1 {
+        return 1;
+    }
+    let desired = messages.len() - keep_recent;
+    for i in (1..=desired).rev() {
+        if messages[i].get("role").and_then(|r| r.as_str()) == Some("user") {
+            return i;
+        }
+    }
+    desired.max(1)
+}
+
+fn build_summary_text(messages: &[Value]) -> String {
+    let mut text = String::new();
+    for msg in messages {
+        let role = msg
+            .get("role")
+            .and_then(|r| r.as_str())
+            .unwrap_or("unknown");
+        if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
+            if !content.is_empty() {
+                let truncated = if content.len() > 2000 {
+                    format!("{}...[truncated]", &content[..2000])
+                } else {
+                    content.to_string()
+                };
+                text.push_str(&format!("[{}] {}\n\n", role, truncated));
+            }
+        }
+        if let Some(tcs) = msg.get("tool_calls").and_then(|t| t.as_array()) {
+            for tc in tcs {
+                let name = tc
+                    .get("function")
+                    .and_then(|f| f.get("name"))
+                    .and_then(|n| n.as_str())
+                    .unwrap_or("");
+                let args = tc
+                    .get("function")
+                    .and_then(|f| f.get("arguments"))
+                    .and_then(|a| a.as_str())
+                    .unwrap_or("");
+                text.push_str(&format!("[assistant tool:{}] {}\n", name, args));
+            }
+        }
+    }
+    text
+}
+
+async fn summarize_for_compaction(
+    client: &reqwest::Client,
+    url: &str,
+    api_key: &str,
+    model: &str,
+    messages: &[Value],
+) -> Option<String> {
+    let conversation = build_summary_text(messages);
+    if conversation.is_empty() {
+        return None;
+    }
+
+    let body = json!({
+        "model": model,
+        "messages": [
+            {
+                "role": "system",
+                "content": "Summarize this browser automation conversation concisely. Preserve: URLs visited, actions performed, current page state, errors encountered, and user goals. Output only the summary."
+            },
+            {
+                "role": "user",
+                "content": conversation
+            }
+        ],
+        "max_tokens": 1024,
+        "stream": false,
+    });
+
+    let resp = client
+        .post(url)
+        .header("Authorization", format!("Bearer {}", api_key))
+        .header("Content-Type", "application/json")
+        .body(body.to_string())
+        .send()
+        .await
+        .ok()?;
+
+    if !resp.status().is_success() {
+        return None;
+    }
+
+    let result: Value = resp.json().await.ok()?;
+    result
+        .get("choices")
+        .and_then(|c| c.get(0))
+        .and_then(|c| c.get("message"))
+        .and_then(|m| m.get("content"))
+        .and_then(|c| c.as_str())
+        .map(|s| s.to_string())
+}
+
+const SCREENSHOT_MAX_WIDTH: u32 = 1024;
+const SCREENSHOT_JPEG_QUALITY: u8 = 40;
+
+fn compress_image_to_jpeg(raw_bytes: &[u8]) -> Option<Vec<u8>> {
+    let img = image::load_from_memory(raw_bytes).ok()?;
+    let img = if img.width() > SCREENSHOT_MAX_WIDTH {
+        img.resize(
+            SCREENSHOT_MAX_WIDTH,
+            u32::MAX,
+            image::imageops::FilterType::Triangle,
+        )
+    } else {
+        img
+    };
+    let mut buf = std::io::Cursor::new(Vec::new());
+    let encoder = image::codecs::jpeg::JpegEncoder::new_with_quality(&mut buf, SCREENSHOT_JPEG_QUALITY);
+    img.write_with_encoder(encoder).ok()?;
+    Some(buf.into_inner())
+}
+
+fn extract_image_path(text: &str) -> Option<String> {
+    for line in text.lines() {
+        let trimmed = line.trim();
+        for suffix in [".png", ".jpg", ".jpeg"] {
+            if let Some(pos) = trimmed.to_lowercase().rfind(suffix) {
+                let end = pos + suffix.len();
+                let candidate = &trimmed[..end];
+                let start = candidate
+                    .rfind(|c: char| c.is_whitespace())
+                    .map(|i| i + 1)
+                    .unwrap_or(0);
+                let path = &candidate[start..];
+                if path.contains('/') || path.contains('\\') {
+                    return Some(path.to_string());
+                }
+            }
+        }
+    }
+    None
+}
+
+fn enrich_tool_output(result: &str) -> String {
+    let Some(path) = extract_image_path(result) else {
+        return result.to_string();
+    };
+
+    let Ok(raw_bytes) = std::fs::read(&path) else {
+        return result.to_string();
+    };
+
+    let (jpeg_bytes, mime) = match compress_image_to_jpeg(&raw_bytes) {
+        Some(compressed) => (compressed, "image/jpeg"),
+        None => {
+            let lower = path.to_lowercase();
+            (
+                raw_bytes,
+                if lower.ends_with(".png") {
+                    "image/png"
+                } else {
+                    "image/jpeg"
+                },
+            )
+        }
+    };
+
+    let b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &jpeg_bytes);
+    let data_url = format!("data:{};base64,{}", mime, b64);
+
+    json!({
+        "text": result,
+        "image": data_url
+    })
+    .to_string()
+}
+
 async fn execute_chat_tool(session: &str, command: &str) -> String {
     let exe = match std::env::current_exe() {
         Ok(p) => p,
@@ -124,7 +325,6 @@ async fn execute_chat_tool(session: &str, command: &str) -> String {
 
     let mut args: Vec<String> = vec!["--session".into(), session.into()];
     args.extend(shell_words_split(command));
-    args.push("--json".into());
 
     let mut cmd = tokio::process::Command::new(&exe);
     cmd.args(&args)
@@ -323,17 +523,49 @@ pub(super) async fn handle_chat_request(stream: &mut tokio::net::TcpStream, body
     let session = parsed.get("session").and_then(|v| v.as_str()).unwrap_or("default").to_string();
 
     let mut openai_messages: Vec<Value> = vec![json!({"role": "system", "content": get_system_prompt()})];
-    if let Some(arr) = messages.as_array() {
+    let mut frontend_boundaries: Vec<usize> = Vec::new();
+    let frontend_arr = messages.as_array();
+    let frontend_count = frontend_arr.map(|a| a.len()).unwrap_or(0);
+    if let Some(arr) = frontend_arr {
         for msg in arr {
+            frontend_boundaries.push(openai_messages.len());
             let Some(role) = msg.get("role").and_then(|r| r.as_str()) else { continue };
             if let Some(parts) = msg.get("parts").and_then(|p| p.as_array()) {
-                let text: String = parts.iter().filter_map(|part| {
-                    if part.get("type")?.as_str()? == "text" {
-                        part.get("text")?.as_str().map(|s| s.to_string())
-                    } else { None }
-                }).collect::<Vec<_>>().join("");
-                if !text.is_empty() {
-                    openai_messages.push(json!({"role": role, "content": text}));
+                let mut content_parts: Vec<Value> = Vec::new();
+                for part in parts {
+                    match part.get("type").and_then(|t| t.as_str()) {
+                        Some("text") => {
+                            if let Some(text) = part.get("text").and_then(|t| t.as_str()) {
+                                if !text.is_empty() {
+                                    content_parts.push(json!({"type": "text", "text": text}));
+                                }
+                            }
+                        }
+                        Some("file") => {
+                            if let (Some(url), Some(media_type)) = (
+                                part.get("url").and_then(|u| u.as_str()),
+                                part.get("mediaType").and_then(|m| m.as_str()),
+                            ) {
+                                if media_type.starts_with("image/") {
+                                    content_parts.push(json!({
+                                        "type": "image_url",
+                                        "image_url": { "url": url }
+                                    }));
+                                }
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                if !content_parts.is_empty() {
+                    let content = if content_parts.len() == 1
+                        && content_parts[0].get("type").and_then(|t| t.as_str()) == Some("text")
+                    {
+                        content_parts[0]["text"].clone()
+                    } else {
+                        json!(content_parts)
+                    };
+                    openai_messages.push(json!({"role": role, "content": content}));
                 }
             } else if let Some(content) = msg.get("content").and_then(|c| c.as_str()) {
                 openai_messages.push(json!({"role": role, "content": content}));
@@ -345,6 +577,32 @@ pub(super) async fn handle_chat_request(stream: &mut tokio::net::TcpStream, body
     let url = format!("{}/v1/chat/completions", gateway_url);
     let client = reqwest::Client::new();
 
+    let total_chars = estimate_chars(&openai_messages);
+    let mut compaction_summary: Option<String> = None;
+    let mut keep_last_n: usize = frontend_count;
+
+    if total_chars > COMPACT_THRESHOLD_CHARS && openai_messages.len() > KEEP_RECENT_MESSAGES + 2 {
+        let split = find_safe_split(&openai_messages, KEEP_RECENT_MESSAGES);
+        let to_summarize = &openai_messages[1..split];
+
+        if let Some(summary) = summarize_for_compaction(&client, &url, &api_key, &model, to_summarize).await {
+            let summary_msg = json!({
+                "role": "system",
+                "content": format!("[Conversation summary]\n{}", summary)
+            });
+            let recent = openai_messages[split..].to_vec();
+            openai_messages = vec![openai_messages[0].clone(), summary_msg];
+            openai_messages.extend(recent);
+
+            let kept_frontend = frontend_boundaries
+                .iter()
+                .filter(|&&boundary| boundary >= split)
+                .count();
+            keep_last_n = kept_frontend;
+            compaction_summary = Some(summary);
+        }
+    }
+
     let headers = format!(
         "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nCache-Control: no-cache\r\nConnection: keep-alive\r\nx-vercel-ai-ui-message-stream: v1\r\n{CORS_HEADERS}\r\n"
     );
@@ -353,6 +611,21 @@ pub(super) async fn handle_chat_request(stream: &mut tokio::net::TcpStream, body
     let message_id = uuid::Uuid::new_v4().to_string();
     let start_ev = format!("data: {}\n\n", json!({"type":"start","messageId":message_id}));
     if stream.write_all(start_ev.as_bytes()).await.is_err() { return; }
+
+    if let Some(ref summary) = compaction_summary {
+        let ev = format!(
+            "data: {}\n\n",
+            json!({
+                "type": "message-metadata",
+                "messageMetadata": {
+                    "compacted": true,
+                    "summary": summary,
+                    "keepLastN": keep_last_n
+                }
+            })
+        );
+        let _ = stream.write_all(ev.as_bytes()).await;
+    }
 
     for _step in 0..10 {
         let step_ev = "data: {\"type\":\"start-step\"}\n\n";
@@ -415,10 +688,11 @@ pub(super) async fn handle_chat_request(stream: &mut tokio::net::TcpStream, body
 
             let result = execute_chat_tool(&session, command).await;
 
+            let frontend_output = enrich_tool_output(&result);
             let ev = format!("data: {}\n\n", json!({
                 "type": "tool-output-available",
                 "toolCallId": tc_id,
-                "output": result
+                "output": frontend_output
             }));
             let _ = stream.write_all(ev.as_bytes()).await;
 
