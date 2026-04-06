@@ -68,11 +68,7 @@ pub fn run_chat(flags: &Flags, message: Option<String>) {
                         json!({"success": false, "error": format!("Failed to read stdin: {}", e)})
                     );
                 } else {
-                    eprintln!(
-                        "{} Failed to read stdin: {}",
-                        color::error_indicator(),
-                        e
-                    );
+                    eprintln!("{} Failed to read stdin: {}", color::error_indicator(), e);
                 }
                 exit(1);
             }
@@ -216,10 +212,7 @@ async fn run_chat_turn(
                     json!({"success": false, "error": "AI_GATEWAY_API_KEY not set"})
                 );
             } else {
-                eprintln!(
-                    "{} AI_GATEWAY_API_KEY not set",
-                    color::error_indicator()
-                );
+                eprintln!("{} AI_GATEWAY_API_KEY not set", color::error_indicator());
             }
             return false;
         }
@@ -356,15 +349,13 @@ async fn run_chat_turn(
                 eprintln!("{}", color::dim(&format!("> {}", command)));
             }
 
-            let result = match tokio::time::timeout(
-                tool_timeout,
-                chat::execute_chat_tool(session, command),
-            )
-            .await
-            {
-                Ok(r) => r,
-                Err(_) => "Tool execution timed out after 60 seconds.".to_string(),
-            };
+            let result =
+                match tokio::time::timeout(tool_timeout, chat::execute_chat_tool(session, command))
+                    .await
+                {
+                    Ok(r) => r,
+                    Err(_) => "Tool execution timed out after 60 seconds.".to_string(),
+                };
 
             if !json_mode && verbosity == Verbosity::Verbose {
                 for line in result.lines() {
