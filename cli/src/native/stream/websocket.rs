@@ -1,6 +1,5 @@
 use serde_json::{json, Value};
 use std::net::SocketAddr;
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use futures_util::{SinkExt, StreamExt};
@@ -24,7 +23,6 @@ pub(super) async fn accept_loop(
     cdp_session_id: Arc<RwLock<Option<String>>>,
     viewport_width: Arc<Mutex<u32>>,
     viewport_height: Arc<Mutex<u32>>,
-    dashboard_dir: Option<PathBuf>,
     last_tabs: Arc<RwLock<Vec<Value>>>,
     last_engine: Arc<RwLock<String>>,
     last_frame: Arc<RwLock<Option<String>>>,
@@ -32,7 +30,6 @@ pub(super) async fn accept_loop(
     mut shutdown_rx: watch::Receiver<bool>,
     session_name: String,
 ) {
-    let dashboard_dir = dashboard_dir.map(Arc::from);
     let session_name: Arc<str> = Arc::from(session_name);
     loop {
         tokio::select! {
@@ -53,7 +50,6 @@ pub(super) async fn accept_loop(
                 let cdp_session_id = cdp_session_id.clone();
                 let vw = viewport_width.clone();
                 let vh = viewport_height.clone();
-                let dd = dashboard_dir.clone();
                 let lt = last_tabs.clone();
                 let le = last_engine.clone();
                 let lf = last_frame.clone();
@@ -73,7 +69,6 @@ pub(super) async fn accept_loop(
                         cdp_session_id,
                         vw,
                         vh,
-                        dd,
                         lt,
                         le,
                         lf,
@@ -112,7 +107,6 @@ async fn handle_connection(
     cdp_session_id: Arc<RwLock<Option<String>>>,
     viewport_width: Arc<Mutex<u32>>,
     viewport_height: Arc<Mutex<u32>>,
-    dashboard_dir: Option<Arc<PathBuf>>,
     last_tabs: Arc<RwLock<Vec<Value>>>,
     last_engine: Arc<RwLock<String>>,
     last_frame: Arc<RwLock<Option<String>>>,
@@ -151,7 +145,6 @@ async fn handle_connection(
         handle_http_request(
             stream,
             &buf[..n],
-            dashboard_dir.as_deref().map(|p| p.as_path()),
             &last_tabs,
             &last_engine,
             &session_name,

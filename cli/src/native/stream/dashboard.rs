@@ -1,16 +1,13 @@
 use serde_json::{json, Value};
-use std::path::PathBuf;
-use std::sync::Arc;
 
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpListener;
 
 use crate::connection::get_socket_dir;
-use crate::install::get_dashboard_dir;
 
 use super::chat::{chat_status_json, handle_chat_request, handle_models_request};
 use super::discovery::discover_sessions;
-use super::http::{serve_static_file, CORS_HEADERS, DASHBOARD_NOT_INSTALLED_HTML};
+use super::http::{serve_embedded_file, CORS_HEADERS};
 
 pub async fn run_dashboard_server(port: u16) {
     let addr = format!("127.0.0.1:{}", port);
@@ -22,23 +19,17 @@ pub async fn run_dashboard_server(port: u16) {
         }
     };
 
-    let dashboard_dir: Arc<PathBuf> = Arc::from(get_dashboard_dir());
-
     loop {
         let Ok((stream, _addr)) = listener.accept().await else {
             break;
         };
-        let dash_dir = dashboard_dir.clone();
         tokio::spawn(async move {
-            handle_dashboard_connection(stream, dash_dir).await;
+            handle_dashboard_connection(stream).await;
         });
     }
 }
 
-async fn handle_dashboard_connection(
-    mut stream: tokio::net::TcpStream,
-    dashboard_dir: Arc<PathBuf>,
-) {
+async fn handle_dashboard_connection(mut stream: tokio::net::TcpStream) {
     use tokio::io::AsyncReadExt;
 
     let mut buf = vec![0u8; 8192];
@@ -118,14 +109,8 @@ async fn handle_dashboard_connection(
             "application/json; charset=utf-8",
             chat_status_json().into_bytes(),
         )
-    } else if dashboard_dir.join("index.html").exists() {
-        serve_static_file(&dashboard_dir, path)
     } else {
-        (
-            "200 OK",
-            "text/html; charset=utf-8",
-            DASHBOARD_NOT_INSTALLED_HTML.as_bytes().to_vec(),
-        )
+        serve_embedded_file(path)
     };
 
     let response = format!(

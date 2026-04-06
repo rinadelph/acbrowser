@@ -654,10 +654,6 @@ fn main() {
     // Handle dashboard subcommand
     if clean.first().map(|s| s.as_str()) == Some("dashboard") {
         match clean.get(1).map(|s| s.as_str()) {
-            Some("install") => {
-                install::run_dashboard_install();
-                return;
-            }
             Some("start") | None => {
                 let port = clean
                     .iter()

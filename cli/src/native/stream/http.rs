@@ -1,5 +1,5 @@
+use rust_embed::Embed;
 use serde_json::{json, Value};
-use std::path::Path;
 use std::sync::Arc;
 
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -12,6 +12,10 @@ use crate::connection::resolve_port;
 use super::chat::{chat_status_json, handle_chat_request, handle_models_request};
 use super::dashboard::spawn_session;
 use super::discovery::discover_sessions;
+
+#[derive(Embed)]
+#[folder = "../packages/dashboard/out/"]
+struct DashboardAssets;
 
 pub(super) const CORS_HEADERS: &str = "Access-Control-Allow-Origin: *\r\nAccess-Control-Allow-Methods: GET, POST, OPTIONS\r\nAccess-Control-Allow-Headers: Content-Type\r\n";
 
@@ -42,7 +46,6 @@ fn parse_origin(peeked: &[u8]) -> Option<String> {
 pub(super) async fn handle_http_request(
     mut stream: tokio::net::TcpStream,
     peeked: &[u8],
-    dashboard_dir: Option<&Path>,
     last_tabs: &Arc<RwLock<Vec<Value>>>,
     last_engine: &Arc<RwLock<String>>,
     session_name: &str,
@@ -163,14 +166,7 @@ pub(super) async fn handle_http_request(
             chat_status_json().into_bytes(),
         )
     } else {
-        match dashboard_dir {
-            Some(dir) => serve_static_file(dir, path),
-            None => (
-                "200 OK",
-                "text/html; charset=utf-8",
-                DASHBOARD_NOT_INSTALLED_HTML.as_bytes().to_vec(),
-            ),
-        }
+        serve_embedded_file(path)
     };
 
     let response = format!(
@@ -282,25 +278,15 @@ pub(super) async fn relay_command_to_daemon(
     Ok(response_line.trim().to_string())
 }
 
-pub(super) fn serve_static_file(
-    dir: &Path,
-    url_path: &str,
-) -> (&'static str, &'static str, Vec<u8>) {
+pub(super) fn serve_embedded_file(url_path: &str) -> (&'static str, &'static str, Vec<u8>) {
     let clean = url_path.trim_start_matches('/');
-    let file_path = if clean.is_empty() {
-        dir.join("index.html")
-    } else {
-        let joined = dir.join(clean);
-        if joined.is_file() {
-            joined
-        } else {
-            dir.join("index.html")
-        }
-    };
+    let key = if clean.is_empty() { "index.html" } else { clean };
 
-    match std::fs::read(&file_path) {
-        Ok(content) => {
-            let ext = file_path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    let file = DashboardAssets::get(key).or_else(|| DashboardAssets::get("index.html"));
+
+    match file {
+        Some(content) => {
+            let ext = key.rsplit('.').next().unwrap_or("");
             let ct = match ext {
                 "html" => "text/html; charset=utf-8",
                 "js" => "application/javascript; charset=utf-8",
@@ -309,31 +295,17 @@ pub(super) fn serve_static_file(
                 "svg" => "image/svg+xml",
                 "png" => "image/png",
                 "ico" => "image/x-icon",
+                "woff2" => "font/woff2",
+                "woff" => "font/woff",
+                "txt" => "text/plain; charset=utf-8",
                 _ => "application/octet-stream",
             };
-            ("200 OK", ct, content)
+            ("200 OK", ct, content.data.to_vec())
         }
-        Err(_) => (
+        None => (
             "404 Not Found",
             "text/html; charset=utf-8",
             b"<html><body><p>404 Not Found</p></body></html>".to_vec(),
         ),
     }
 }
-
-pub(super) const DASHBOARD_NOT_INSTALLED_HTML: &str = r#"<!DOCTYPE html>
-<html lang="en">
-<head><meta charset="utf-8"><title>agent-browser</title>
-<style>
-body { font-family: system-ui, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #0a0a0a; color: #e5e5e5; }
-.card { text-align: center; max-width: 400px; }
-code { background: #262626; padding: 2px 8px; border-radius: 4px; font-size: 14px; }
-</style>
-</head>
-<body>
-<div class="card">
-<h2>Dashboard not installed</h2>
-<p>Run <code>agent-browser dashboard install</code> to download the dashboard.</p>
-</div>
-</body>
-</html>"#;

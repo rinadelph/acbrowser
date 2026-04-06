@@ -121,6 +121,9 @@ jobs:
       - name: Sync version
         run: pnpm run version:sync
 
+      - name: Build dashboard
+        run: pnpm --filter dashboard build
+
       - name: Setup Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -288,26 +291,6 @@ jobs:
           fi
           echo "Found $BINARY_COUNT binaries"
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22'
-          cache: pnpm
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Build dashboard
-        run: pnpm --filter dashboard build
-
-      - name: Create dashboard.zip
-        run: cd packages/dashboard/out && zip -r ../../../dashboard.zip .
-
       - name: Extract changelog entry
         run: |
           VERSION="${{ needs.check-release.outputs.version }}"
@@ -327,13 +310,13 @@ jobs:
 
           if gh release view "$TAG" &>/dev/null; then
             echo "Release $TAG already exists, uploading assets..."
-            gh release upload "$TAG" bin/agent-browser-* dashboard.zip --clobber
+            gh release upload "$TAG" bin/agent-browser-* --clobber
           else
             echo "Creating release $TAG..."
             gh release create "$TAG" \
               --title "$TAG" \
               --notes-file /tmp/release-notes.md \
-              bin/agent-browser-* dashboard.zip
+              bin/agent-browser-*
           fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

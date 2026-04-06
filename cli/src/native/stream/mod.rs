@@ -9,7 +9,6 @@ pub use cdp_loop::{ack_screencast_frame, start_screencast, stop_screencast};
 pub use dashboard::run_dashboard_server;
 
 use serde_json::{json, Value};
-use std::path::PathBuf;
 use std::sync::Arc;
 
 use tokio::net::TcpListener;
@@ -55,7 +54,6 @@ pub struct StreamServer {
     screencasting: Arc<Mutex<bool>>,
     viewport_width: Arc<Mutex<u32>>,
     viewport_height: Arc<Mutex<u32>>,
-    dashboard_dir: Option<PathBuf>,
     last_tabs: Arc<RwLock<Vec<Value>>>,
     last_engine: Arc<RwLock<String>>,
     last_frame: Arc<RwLock<Option<String>>>,
@@ -89,16 +87,6 @@ impl StreamServer {
     ) -> Result<(Self, Arc<RwLock<Option<Arc<CdpClient>>>>), String> {
         let client_slot = Arc::new(RwLock::new(None::<Arc<CdpClient>>));
         Self::start_inner(preferred_port, client_slot, session_id, allow_port_fallback).await
-    }
-
-    /// Resolve the dashboard directory if it exists.
-    fn resolve_dashboard_dir() -> Option<PathBuf> {
-        let dir = dirs::home_dir()?.join(".agent-browser").join("dashboard");
-        if dir.join("index.html").exists() {
-            Some(dir)
-        } else {
-            None
-        }
     }
 
     /// Notify the background CDP listener that the client has changed (browser launched/closed).
@@ -181,8 +169,6 @@ impl StreamServer {
             .map_err(|e| format!("Failed to get stream address: {}", e))?;
         let port = actual_addr.port();
 
-        let dashboard_dir = Self::resolve_dashboard_dir();
-
         let (frame_tx, _) = broadcast::channel::<String>(64);
         let client_count = Arc::new(Mutex::new(0usize));
         let client_notify = Arc::new(Notify::new());
@@ -205,7 +191,6 @@ impl StreamServer {
 
         let vw_clone = viewport_width.clone();
         let vh_clone = viewport_height.clone();
-        let dashboard_dir_clone = dashboard_dir.clone();
         let last_tabs_clone = last_tabs.clone();
         let last_engine_clone = last_engine.clone();
         let last_frame_clone = last_frame.clone();
@@ -223,7 +208,6 @@ impl StreamServer {
                 cdp_session_clone,
                 vw_clone,
                 vh_clone,
-                dashboard_dir_clone,
                 last_tabs_clone,
                 last_engine_clone,
                 last_frame_clone,
@@ -277,7 +261,6 @@ impl StreamServer {
                 screencasting,
                 viewport_width,
                 viewport_height,
-                dashboard_dir,
                 last_tabs,
                 last_engine,
                 last_frame,
@@ -436,10 +419,6 @@ impl StreamServer {
         let _ = self.frame_tx.send(msg.to_string());
     }
 
-    /// Whether the dashboard directory is available.
-    pub fn has_dashboard(&self) -> bool {
-        self.dashboard_dir.is_some()
-    }
 }
 
 pub(crate) fn timestamp_ms() -> u64 {
