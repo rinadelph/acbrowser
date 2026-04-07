@@ -89,6 +89,9 @@ pub struct Config {
     pub idle_timeout: Option<String>,
     pub no_auto_dialog: Option<bool>,
     pub model: Option<String>,
+    /// Enable stealth mode using CloakBrowser patched Chromium
+    /// Bypasses bot detection like FingerprintJS and Cloudflare Turnstile
+    pub stealth: Option<bool>,
 }
 
 impl Config {
@@ -136,6 +139,7 @@ impl Config {
             idle_timeout: other.idle_timeout.or(self.idle_timeout),
             no_auto_dialog: other.no_auto_dialog.or(self.no_auto_dialog),
             model: other.model.or(self.model),
+            stealth: other.stealth.or(self.stealth),
         }
     }
 }
@@ -308,6 +312,9 @@ pub struct Flags {
     pub model: Option<String>,
     pub verbose: bool,
     pub quiet: bool,
+    /// Enable stealth mode using CloakBrowser patched Chromium
+    /// Bypasses bot detection like FingerprintJS and Cloudflare Turnstile
+    pub stealth: bool,
 
     // Track which launch-time options were explicitly passed via CLI
     // (as opposed to being set only via environment variables)
@@ -447,6 +454,7 @@ pub fn parse_flags(args: &[String]) -> Flags {
         model: env::var("AI_GATEWAY_MODEL").ok().or(config.model),
         verbose: false,
         quiet: false,
+        stealth: env_var_is_truthy("ACBROWSER_STEALTH") || config.stealth.unwrap_or(false),
         cli_executable_path: false,
         cli_extensions: false,
         cli_profile: false,
@@ -482,6 +490,13 @@ pub fn parse_flags(args: &[String]) -> Flags {
             "--debug" => {
                 let (val, consumed) = parse_bool_arg(args, i);
                 flags.debug = val;
+                if consumed {
+                    i += 1;
+                }
+            }
+            "--stealth" => {
+                let (val, consumed) = parse_bool_arg(args, i);
+                flags.stealth = val;
                 if consumed {
                     i += 1;
                 }

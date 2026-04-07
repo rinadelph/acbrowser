@@ -3,6 +3,38 @@
 version = 4
 
 [[package]]
+name = "acbrowser"
+version = "0.25.3"
+dependencies = [
+ "aes-gcm",
+ "async-trait",
+ "base64",
+ "chrono",
+ "dirs",
+ "futures-util",
+ "getrandom 0.2.17",
+ "hex",
+ "hmac",
+ "image",
+ "libc",
+ "reqwest",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "sha2",
+ "similar",
+ "socket2",
+ "time",
+ "tokio",
+ "tokio-tungstenite",
+ "url",
+ "urlencoding",
+ "uuid",
+ "windows-sys 0.52.0",
+ "zip",
+]
+
+[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -41,38 +73,6 @@ dependencies = [
  "ctr",
  "ghash",
  "subtle",
-]
-
-[[package]]
-name = "acbrowser"
-version = "0.25.3"
-dependencies = [
- "aes-gcm",
- "async-trait",
- "base64",
- "chrono",
- "dirs",
- "futures-util",
- "getrandom 0.2.17",
- "hex",
- "hmac",
- "image",
- "libc",
- "reqwest",
- "rust-embed",
- "serde",
- "serde_json",
- "sha2",
- "similar",
- "socket2",
- "time",
- "tokio",
- "tokio-tungstenite",
- "url",
- "urlencoding",
- "uuid",
- "windows-sys 0.52.0",
- "zip",
 ]
 
 [[package]]

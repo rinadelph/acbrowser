@@ -1,3 +1,4 @@
+use std::env;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -110,6 +111,9 @@ pub struct LaunchOptions {
     /// Chrome uses the real system keychain. Set automatically when launching
     /// with a copied Chrome profile.
     pub use_real_keychain: bool,
+    /// Enable stealth mode using CloakBrowser patched Chromium.
+    /// Bypasses bot detection like FingerprintJS and Cloudflare Turnstile.
+    pub stealth: bool,
 }
 
 impl Default for LaunchOptions {
@@ -132,6 +136,7 @@ impl Default for LaunchOptions {
             download_path: None,
             viewport_size: None,
             use_real_keychain: false,
+            stealth: false,
         }
     }
 }
@@ -240,6 +245,28 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
         args.push("--disable-dev-shm-usage".to_string());
     }
 
+    // CloakBrowser stealth flags - only effective with CloakBrowser patched binary
+    // These require the CloakBrowser Chromium which has source-level patches for:
+    // - FingerprintJS evasion
+    // - Cloudflare Turnstile bypass
+    // - navigator.webdriver masking
+    if options.stealth {
+        // Fingerprint spoofing - CloakBrowser patches FingerprintJS at source
+        if let Some(fp) = env::var("ACBROWSER_FINGERPRINT").ok() {
+            args.push(format!("--fingerprint={}", fp));
+        } else {
+            args.push("--fingerprint=random".to_string());
+        }
+        // Platform spoofing
+        if let Some(platform) = env::var("ACBROWSER_PLATFORM").ok() {
+            args.push(format!("--fingerprint-platform={}", platform));
+        } else {
+            args.push("--fingerprint-platform=macos".to_string());
+        }
+        // CloakBrowser partition for isolated browser state
+        args.push("--cloak-partition".to_string());
+    }
+
     Ok(ChromeArgs {
         args,
         user_data_dir,
@@ -248,20 +275,34 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
 }
 
 pub fn launch_chrome(options: &LaunchOptions) -> Result<ChromeProcess, String> {
-    let chrome_path = match &options.executable_path {
-        Some(p) => PathBuf::from(p),
-        None => find_chrome().ok_or_else(|| {
-            let cache_dir = crate::install::get_browsers_dir();
-            format!(
-                "Chrome not found. Checked:\n  \
-                 - acbrowser cache: {}\n  \
-                 - System Chrome installations\n  \
-                 - Puppeteer browser cache\n  \
-                 - Playwright browser cache\n\
-                 Run `acbrowser install` to download Chrome, or use --executable-path.",
-                cache_dir.display()
-            )
-        })?,
+    // If stealth mode is enabled, use CloakBrowser patched Chromium
+    let chrome_path = if options.stealth {
+        // First check if user explicitly provided an executable path
+        if let Some(p) = &options.executable_path {
+            PathBuf::from(p)
+        } else {
+            // Try to find CloakBrowser binary
+            super::cloak::find_cloak_browser().ok_or_else(|| {
+                super::cloak::get_install_instructions()
+            })?
+        }
+    } else {
+        // Normal Chrome detection
+        match &options.executable_path {
+            Some(p) => PathBuf::from(p),
+            None => find_chrome().ok_or_else(|| {
+                let cache_dir = crate::install::get_browsers_dir();
+                format!(
+                    "Chrome not found. Checked:\n  \
+                     - acbrowser cache: {}\n  \
+                     - System Chrome installations\n  \
+                     - Puppeteer browser cache\n  \
+                     - Playwright browser cache\n\
+                     Run `acbrowser install` to download Chrome, or use --executable-path.",
+                    cache_dir.display()
+                )
+            })?,
+        }
     };
 
     // Profile name preprocessing: if --profile is a Chrome profile name (not a
