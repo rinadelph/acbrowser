@@ -1,6 +1,6 @@
 # acbrowser
 
-**AI-agent-friendly stealth browser CLI** - Combining the power of [acbrowser](https://github.com/vercel-labs/acbrowser) with the stealth capabilities of [CloakBrowser](https://github.com/CloakHQ/CloakBrowser).
+**AI-agent-friendly stealth browser CLI** - A fork of [agent-browser](https://github.com/vercel-labs/agent-browser) with the stealth capabilities of [CloakBrowser](https://github.com/CloakHQ/CloakBrowser).
 
 A fast native Rust CLI for browser automation that can bypass advanced bot detection including FingerprintJS and Cloudflare Turnstile.
 
@@ -9,18 +9,36 @@ A fast native Rust CLI for browser automation that can bypass advanced bot detec
 - **Fast Native Rust CLI** - No Playwright or Node.js runtime required for the daemon
 - **Stealth Mode** - Uses CloakBrowser's patched Chromium engine to bypass bot detection
 - **AI-Agent Friendly** - Designed specifically for AI agents with accessibility tree snapshots and ref-based interactions
-- **Upstream Sync** - Receives updates from both acbrowser and CloakBrowser upstreams
+- **Upstream Sync** - Receives updates from both agent-browser and CloakBrowser upstreams
+- **CLI Override** - Installs as `agent-browser` command for seamless replacement
+
+## CLI Commands
+
+After installation, all three commands work identically:
+
+```bash
+ac open example.com              # Short form
+acbrowser open example.com       # Full name
+agent-browser open example.com   # Override original CLI
+```
+
+This allows you to seamlessly replace the original agent-browser while gaining stealth capabilities.
 
 ## Installation
 
 ### Global Installation (recommended)
 
-Installs the native Rust binary:
+Installs the native Rust binary and provides three CLI commands:
 
 ```bash
 npm install -g acbrowser
 ac install  # Download Chrome from Chrome for Testing (first time only)
 ```
+
+After installation, these commands are available:
+- `ac` - Short form
+- `acbrowser` - Full name
+- `agent-browser` - Override for original CLI (backward compatible)
 
 ### Project Installation (local dependency)
 

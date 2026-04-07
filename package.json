@@ -10,7 +10,8 @@
   ],
   "bin": {
     "ac": "./bin/ac.js",
-    "acbrowser": "./bin/ac.js"
+    "acbrowser": "./bin/ac.js",
+    "agent-browser": "./bin/ac.js"
   },
   "scripts": {
     "version:sync": "node scripts/sync-version.js",

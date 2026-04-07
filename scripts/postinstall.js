@@ -45,7 +45,7 @@ const packageJson = JSON.parse(
 const version = packageJson.version;
 
 // GitHub release URL
-const GITHUB_REPO = 'vercel-labs/acbrowser';
+const GITHUB_REPO = 'rinadelph/acbrowser';
 const DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${binaryName}`;
 
 async function downloadFile(url, dest) {
@@ -195,6 +195,10 @@ function showInstallReminder() {
     console.log(`  ✓ System Chrome found: ${systemChrome}`);
     console.log('    acbrowser will use it automatically.');
     console.log('');
+    console.log('  🛡️  For stealth mode (bot detection bypass), install CloakBrowser:');
+    console.log('      pip install cloakbrowser');
+    console.log('      ac open example.com --stealth');
+    console.log('');
     return;
   }
 
@@ -202,15 +206,21 @@ function showInstallReminder() {
   console.log('  ⚠ No Chrome installation detected.');
   console.log('  If you plan to use a local browser, run:');
   console.log('');
-  console.log('    acbrowser install');
+  console.log('    ac install');
+  console.log('    # or: acbrowser install');
+  console.log('    # or: agent-browser install');
   if (platform() === 'linux') {
     console.log('');
     console.log('  On Linux, include system dependencies with:');
     console.log('');
-    console.log('    acbrowser install --with-deps');
+    console.log('    ac install --with-deps');
   }
   console.log('');
   console.log('  You can skip this if you use --cdp, --provider, --engine, or --executable-path.');
+  console.log('');
+  console.log('  🛡️  For stealth mode (bypass FingerprintJS, Cloudflare):');
+  console.log('      pip install cloakbrowser');
+  console.log('      ac open example.com --stealth');
   console.log('');
 }
 
@@ -240,27 +250,32 @@ async function fixUnixSymlink() {
     return; // npm not available
   }
 
-  const symlinkPath = join(npmBinDir, 'acbrowser');
+  // Handle all three CLI commands: ac, acbrowser, agent-browser
+  const commands = ['ac', 'acbrowser', 'agent-browser'];
+  
+  for (const cmd of commands) {
+    const symlinkPath = join(npmBinDir, cmd);
 
-  // Check if symlink exists (indicates global install)
-  try {
-    const stat = lstatSync(symlinkPath);
-    if (!stat.isSymbolicLink()) {
-      return; // Not a symlink, don't touch it
+    // Check if symlink exists (indicates global install)
+    try {
+      const stat = lstatSync(symlinkPath);
+      if (!stat.isSymbolicLink()) {
+        continue; // Not a symlink, don't touch it
+      }
+    } catch {
+      continue; // Symlink doesn't exist, not a global install
     }
-  } catch {
-    return; // Symlink doesn't exist, not a global install
-  }
 
-  // Replace symlink to point directly to native binary
-  try {
-    unlinkSync(symlinkPath);
-    symlinkSync(binaryPath, symlinkPath);
-    console.log('✓ Optimized: symlink points to native binary (zero overhead)');
-  } catch (err) {
-    // Permission error or other issue - not critical, JS wrapper still works
-    console.log(`⚠ Could not optimize symlink: ${err.message}`);
-    console.log('  CLI will work via Node.js wrapper (slightly slower startup)');
+    // Replace symlink to point directly to native binary
+    try {
+      unlinkSync(symlinkPath);
+      symlinkSync(binaryPath, symlinkPath);
+      console.log(`✓ Optimized: ${cmd} symlink points to native binary (zero overhead)`);
+    } catch (err) {
+      // Permission error or other issue - not critical, JS wrapper still works
+      console.log(`⚠ Could not optimize ${cmd} symlink: ${err.message}`);
+      console.log('  CLI will work via Node.js wrapper (slightly slower startup)');
+    }
   }
 }
 
@@ -277,37 +292,42 @@ async function fixWindowsShims() {
     return;
   }
 
-  const cmdShim = join(npmBinDir, 'acbrowser.cmd');
-  const ps1Shim = join(npmBinDir, 'acbrowser.ps1');
+  // Handle all three CLI commands: ac, acbrowser, agent-browser
+  const commands = ['ac', 'acbrowser', 'agent-browser'];
+  
+  for (const cmd of commands) {
+    const cmdShim = join(npmBinDir, `${cmd}.cmd`);
+    const ps1Shim = join(npmBinDir, `${cmd}.ps1`);
 
-  // Shims may not exist yet during postinstall (npm creates them after
-  // lifecycle scripts). If missing, fall back: the JS wrapper at
-  // bin/acbrowser.js handles Windows correctly via child_process.spawn.
-  if (!existsSync(cmdShim)) {
-    return;
-  }
+    // Shims may not exist yet during postinstall (npm creates them after
+    // lifecycle scripts). If missing, fall back: the JS wrapper at
+    // bin/ac.js handles Windows correctly via child_process.spawn.
+    if (!existsSync(cmdShim)) {
+      continue;
+    }
 
-  // Detect architecture so ARM64 Windows is handled correctly
-  const cpuArch = arch() === 'arm64' ? 'arm64' : 'x64';
-  const relativeBinaryPath = `node_modules\\acbrowser\\bin\\acbrowser-win32-${cpuArch}.exe`;
-  const absoluteBinaryPath = join(npmBinDir, relativeBinaryPath);
+    // Detect architecture so ARM64 Windows is handled correctly
+    const cpuArch = arch() === 'arm64' ? 'arm64' : 'x64';
+    const relativeBinaryPath = `node_modules\\acbrowser\\bin\\acbrowser-win32-${cpuArch}.exe`;
+    const absoluteBinaryPath = join(npmBinDir, relativeBinaryPath);
 
-  // Only rewrite shims if the native binary actually exists
-  if (!existsSync(absoluteBinaryPath)) {
-    return;
-  }
+    // Only rewrite shims if the native binary actually exists
+    if (!existsSync(absoluteBinaryPath)) {
+      continue;
+    }
 
-  try {
-    const cmdContent = `@ECHO off\r\n"%~dp0${relativeBinaryPath}" %*\r\n`;
-    writeFileSync(cmdShim, cmdContent);
+    try {
+      const cmdContent = `@ECHO off\r\n"%~dp0${relativeBinaryPath}" %*\r\n`;
+      writeFileSync(cmdShim, cmdContent);
 
-    const ps1Content = `#!/usr/bin/env pwsh\r\n$basedir = Split-Path $MyInvocation.MyCommand.Definition -Parent\r\n& "$basedir\\${relativeBinaryPath}" $args\r\nexit $LASTEXITCODE\r\n`;
-    writeFileSync(ps1Shim, ps1Content);
+      const ps1Content = `#!/usr/bin/env pwsh\r\n$basedir = Split-Path $MyInvocation.MyCommand.Definition -Parent\r\n& "$basedir\\${relativeBinaryPath}" $args\r\nexit $LASTEXITCODE\r\n`;
+      writeFileSync(ps1Shim, ps1Content);
 
-    console.log('✓ Optimized: shims point to native binary (zero overhead)');
-  } catch (err) {
-    console.log(`⚠ Could not optimize shims: ${err.message}`);
-    console.log('  CLI will work via Node.js wrapper (slightly slower startup)');
+      console.log(`✓ Optimized: ${cmd} shims point to native binary (zero overhead)`);
+    } catch (err) {
+      console.log(`⚠ Could not optimize ${cmd} shims: ${err.message}`);
+      console.log('  CLI will work via Node.js wrapper (slightly slower startup)');
+    }
   }
 }
 
