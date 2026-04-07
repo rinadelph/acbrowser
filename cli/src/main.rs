@@ -815,6 +815,13 @@ fn main() {
         }
     }
 
+    if flags.ca_cert.is_some() && flags.ignore_https_errors && !flags.json {
+        eprintln!(
+            "{} --ca-cert has no effect when --ignore-https-errors is set (all certificate errors are already ignored)",
+            color::warning_indicator()
+        );
+    }
+
     // Parse proxy URL to separate server from credentials for the daemon.
     let (proxy_server, proxy_username, proxy_password) = if let Some(ref proxy_str) = flags.proxy {
         let parsed = parse_proxy(proxy_str);
@@ -869,48 +876,58 @@ fn main() {
     // Only warn about flags that were passed on the command line, not those set via environment
     // variables (since the daemon already uses the env vars when it starts).
     if daemon_result.already_running {
-        let ignored_flags: Vec<&str> = [
+        let ignored_flags: Vec<String> = [
             if flags.cli_executable_path {
-                Some("--executable-path")
+                Some("--executable-path".to_string())
             } else {
                 None
             },
             if flags.cli_extensions {
-                Some("--extension")
+                Some("--extension".to_string())
             } else {
                 None
             },
             if flags.cli_profile {
-                Some("--profile")
+                Some("--profile".to_string())
             } else {
                 None
             },
             if flags.cli_state {
-                Some("--state")
+                Some("--state".to_string())
             } else {
                 None
             },
-            if flags.cli_args { Some("--args") } else { None },
+            if flags.cli_args {
+                Some("--args".to_string())
+            } else {
+                None
+            },
             if flags.cli_user_agent {
-                Some("--user-agent")
+                Some("--user-agent".to_string())
             } else {
                 None
             },
             if flags.cli_proxy {
-                Some("--proxy")
+                Some("--proxy".to_string())
             } else {
                 None
             },
             if flags.cli_proxy_bypass {
-                Some("--proxy-bypass")
+                Some("--proxy-bypass".to_string())
             } else {
                 None
             },
-            flags.ignore_https_errors.then_some("--ignore-https-errors"),
-            flags.ca_cert.as_ref().map(|_| "--ca-cert"),
-            flags.cli_allow_file_access.then_some("--allow-file-access"),
-            flags.cli_download_path.then_some("--download-path"),
-            flags.cli_headed.then_some("--headed"),
+            flags
+                .ignore_https_errors
+                .then(|| "--ignore-https-errors".to_string()),
+            flags.ca_cert.as_ref().map(|p| format!("--ca-cert {}", p)),
+            flags
+                .cli_allow_file_access
+                .then(|| "--allow-file-access".to_string()),
+            flags
+                .cli_download_path
+                .then(|| "--download-path".to_string()),
+            flags.cli_headed.then(|| "--headed".to_string()),
         ]
         .into_iter()
         .flatten()

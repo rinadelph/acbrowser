@@ -143,34 +143,37 @@ struct ChromeArgs {
     temp_user_data_dir: Option<PathBuf>,
 }
 
-/// Compute a base64-encoded SHA-256 hash of the SubjectPublicKeyInfo (SPKI)
-/// from a PEM or DER certificate file. This is the format Chromium expects
-/// for `--ignore-certificate-errors-spki-list`.
+/// Compute base64-encoded SHA-256 hashes of the SubjectPublicKeyInfo (SPKI)
+/// from a PEM or DER certificate file. Returns a comma-separated list of
+/// hashes when the PEM contains multiple certificates (e.g., a CA bundle).
+/// This is the format Chromium expects for `--ignore-certificate-errors-spki-list`.
 fn compute_spki_hash(cert_path: &str) -> Result<String, String> {
     let data = std::fs::read(cert_path)
         .map_err(|e| format!("Failed to read CA certificate '{}': {}", cert_path, e))?;
 
-    // Extract DER-encoded certificate bytes
-    let der_bytes = if data.starts_with(b"-----BEGIN") {
-        // PEM: extract base64 content between BEGIN/END markers
+    let certs: Vec<Vec<u8>> = if data.starts_with(b"-----BEGIN") {
         let pem_str = std::str::from_utf8(&data)
             .map_err(|e| format!("CA certificate is not valid UTF-8: {}", e))?;
-        decode_pem_certificate(pem_str)?
+        decode_pem_certificates(pem_str)?
     } else {
-        // Assume DER
-        data
+        vec![data]
     };
 
-    // Parse the certificate to extract SubjectPublicKeyInfo
-    let spki = extract_spki_from_der(&der_bytes)?;
+    let hashes: Vec<String> = certs
+        .iter()
+        .map(|der| {
+            let spki = extract_spki_from_der(der)?;
+            let hash = Sha256::digest(spki);
+            Ok(base64::engine::general_purpose::STANDARD.encode(hash))
+        })
+        .collect::<Result<Vec<_>, String>>()?;
 
-    // SHA-256 hash of the SPKI, then base64-encode
-    let hash = Sha256::digest(spki);
-    Ok(base64::engine::general_purpose::STANDARD.encode(hash))
+    Ok(hashes.join(","))
 }
 
-/// Decode a PEM certificate to DER bytes.
-fn decode_pem_certificate(pem: &str) -> Result<Vec<u8>, String> {
+/// Decode all certificates from a PEM file to DER bytes.
+fn decode_pem_certificates(pem: &str) -> Result<Vec<Vec<u8>>, String> {
+    let mut certs = Vec::new();
     let mut in_cert = false;
     let mut b64 = String::new();
 
@@ -178,23 +181,37 @@ fn decode_pem_certificate(pem: &str) -> Result<Vec<u8>, String> {
         let trimmed = line.trim();
         if trimmed.starts_with("-----BEGIN CERTIFICATE") {
             in_cert = true;
+            b64.clear();
             continue;
         }
         if trimmed.starts_with("-----END CERTIFICATE") {
-            break;
+            if !b64.is_empty() {
+                let der = base64::engine::general_purpose::STANDARD
+                    .decode(&b64)
+                    .map_err(|e| format!("Failed to decode PEM base64: {}", e))?;
+                certs.push(der);
+            }
+            in_cert = false;
+            continue;
         }
         if in_cert {
             b64.push_str(trimmed);
         }
     }
 
-    if b64.is_empty() {
+    if certs.is_empty() {
         return Err("No certificate found in PEM file".to_string());
     }
 
-    base64::engine::general_purpose::STANDARD
-        .decode(&b64)
-        .map_err(|e| format!("Failed to decode PEM base64: {}", e))
+    Ok(certs)
+}
+
+/// Decode the first certificate from a PEM file to DER bytes.
+fn decode_pem_certificate(pem: &str) -> Result<Vec<u8>, String> {
+    decode_pem_certificates(pem)?
+        .into_iter()
+        .next()
+        .ok_or_else(|| "No certificate found in PEM file".to_string())
 }
 
 /// Extract the SubjectPublicKeyInfo (SPKI) field from a DER-encoded X.509
@@ -1788,12 +1805,21 @@ JtnWOCSAT+dNsAXmz4ebm7kp9OnpLLKjvrNEUNPA20J5S+BXTtPv7x/koRwSX35M\n\
     }
 
     #[test]
+    fn test_decode_pem_certificates_extracts_all_certs() {
+        let pem = "-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n\
+-----BEGIN CERTIFICATE-----\nZGVm\n-----END CERTIFICATE-----\n";
+        let certs = decode_pem_certificates(pem).unwrap();
+        assert_eq!(certs.len(), 2);
+        assert_eq!(certs[0], b"abc"); // "YWJj" decodes to "abc"
+        assert_eq!(certs[1], b"def"); // "ZGVm" decodes to "def"
+    }
+
+    #[test]
     fn test_decode_pem_certificate_extracts_first_cert() {
-        // Multi-cert PEM should extract only the first certificate
         let pem = "-----BEGIN CERTIFICATE-----\nYWJj\n-----END CERTIFICATE-----\n\
 -----BEGIN CERTIFICATE-----\nZGVm\n-----END CERTIFICATE-----\n";
         let decoded = decode_pem_certificate(pem).unwrap();
-        assert_eq!(decoded, b"abc"); // "YWJj" decodes to "abc"
+        assert_eq!(decoded, b"abc");
     }
 
     #[test]
@@ -1853,6 +1879,39 @@ VXKy7lhMb3nDiq8CIBmql5q02Sl8+aztTKjtEtOfCtcqGghI+rLkQG7jI51x\n\
         assert_eq!(
             hash, TEST_PEM_SPKI_HASH,
             "DER cert should produce same hash as PEM"
+        );
+
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// Multi-cert PEM bundle produces comma-separated SPKI hashes.
+    #[test]
+    fn test_compute_spki_hash_multi_cert_pem() {
+        let ec_pem = "-----BEGIN CERTIFICATE-----\n\
+MIIBeTCCAR+gAwIBAgIUC77fmNcp/aMfqP4lKAzS5d6jIkswCgYIKoZIzj0EAwIw\n\
+EjEQMA4GA1UEAwwHZWMtdGVzdDAeFw0yNjAzMjUxNDQwMDhaFw0yNzAzMjUxNDQw\n\
+MDhaMBIxEDAOBgNVBAMMB2VjLXRlc3QwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNC\n\
+AAQBnhhpB1hXMU9ApP03C+h8cCNXmFnt1ceEXG2HF435Wr/Ky+OQZzpjMT/F5p6b\n\
+d9NZybE1SEwHjFDGSih77kR3o1MwUTAdBgNVHQ4EFgQUHhS1zOh00+tnCdSonx+B\n\
+9J9k3GowHwYDVR0jBBgwFoAUHhS1zOh00+tnCdSonx+B9J9k3GowDwYDVR0TAQH/\n\
+BAUwAwEB/zAKBggqhkjOPQQDAgNIADBFAiEAj1qMNlpw9ydvcHHmyDTEl1a57fH2\n\
+VXKy7lhMb3nDiq8CIBmql5q02Sl8+aztTKjtEtOfCtcqGghI+rLkQG7jI51x\n\
+-----END CERTIFICATE-----\n";
+
+        let bundle = format!("{}{}", TEST_PEM, ec_pem);
+        let dir = std::env::temp_dir().join(format!("spki-multi-{}", uuid::Uuid::new_v4()));
+        let _ = std::fs::create_dir_all(&dir);
+        let cert_path = dir.join("bundle.crt");
+        std::fs::write(&cert_path, &bundle).unwrap();
+
+        let hash = compute_spki_hash(cert_path.to_str().unwrap()).unwrap();
+        let expected = format!(
+            "{},{}",
+            TEST_PEM_SPKI_HASH, "j4u7vkJhMUO1e0mrG0BsLqT56MELt1SAYDhN0iHyvD4="
+        );
+        assert_eq!(
+            hash, expected,
+            "Multi-cert PEM should produce comma-separated hashes"
         );
 
         let _ = std::fs::remove_dir_all(&dir);
