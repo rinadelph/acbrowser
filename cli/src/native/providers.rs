@@ -425,7 +425,7 @@ mod agentcore {
         let url = format!("https://{}{}", host, path);
 
         // Generate a unique session name
-        let session_name = format!("agent-browser-{}", &uuid::Uuid::new_v4().to_string()[..8]);
+        let session_name = format!("acbrowser-{}", &uuid::Uuid::new_v4().to_string()[..8]);
 
         let mut body_json = json!({
             "name": session_name,

@@ -1,5 +1,5 @@
 {
-  "name": "agent-browser-benchmarks",
+  "name": "acbrowser-benchmarks",
   "version": "1.0.0",
   "private": true,
   "type": "module",

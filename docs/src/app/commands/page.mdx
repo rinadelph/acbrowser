@@ -3,61 +3,61 @@
 ## Core
 
 ```bash
-agent-browser open <url>              # Navigate (aliases: goto, navigate)
-agent-browser click <sel>             # Click element (--new-tab to open in new tab)
-agent-browser dblclick <sel>          # Double-click
-agent-browser fill <sel> <text>       # Clear and fill
-agent-browser type <sel> <text>       # Type into element
-agent-browser press <key>             # Press key (Enter, Tab, Control+a) (alias: key)
-agent-browser keyboard type <text>    # Type at current focus (no selector needed)
-agent-browser keyboard inserttext <text>  # Insert text without key events
-agent-browser keydown <key>           # Hold key down
-agent-browser keyup <key>             # Release key
-agent-browser hover <sel>             # Hover element
-agent-browser focus <sel>             # Focus element
-agent-browser select <sel> <val>      # Select dropdown option
-agent-browser check <sel>             # Check checkbox
-agent-browser uncheck <sel>           # Uncheck checkbox
-agent-browser scroll <dir> [px]       # Scroll (up/down/left/right, --selector <sel>)
-agent-browser scrollintoview <sel>    # Scroll element into view
-agent-browser drag <src> <dst>        # Drag and drop
-agent-browser upload <sel> <files>    # Upload files
-agent-browser screenshot [path]       # Screenshot (--full for full page)
-agent-browser screenshot --annotate   # Annotated screenshot with numbered element labels
-agent-browser screenshot --screenshot-dir ./shots    # Save to custom directory
-agent-browser screenshot --screenshot-format jpeg --screenshot-quality 80
-agent-browser pdf <path>              # Save page as PDF
-agent-browser snapshot                # Accessibility tree with refs
-agent-browser eval <js>               # Run JavaScript
-agent-browser connect <port|url>      # Connect to browser via CDP
-agent-browser stream enable [--port <port>]  # Start runtime WebSocket streaming
-agent-browser stream status           # Show runtime streaming state and bound port
-agent-browser stream disable          # Stop runtime WebSocket streaming
-agent-browser close                   # Close browser (aliases: quit, exit)
-agent-browser close --all             # Close all active sessions
+acbrowser open <url>              # Navigate (aliases: goto, navigate)
+acbrowser click <sel>             # Click element (--new-tab to open in new tab)
+acbrowser dblclick <sel>          # Double-click
+acbrowser fill <sel> <text>       # Clear and fill
+acbrowser type <sel> <text>       # Type into element
+acbrowser press <key>             # Press key (Enter, Tab, Control+a) (alias: key)
+acbrowser keyboard type <text>    # Type at current focus (no selector needed)
+acbrowser keyboard inserttext <text>  # Insert text without key events
+acbrowser keydown <key>           # Hold key down
+acbrowser keyup <key>             # Release key
+acbrowser hover <sel>             # Hover element
+acbrowser focus <sel>             # Focus element
+acbrowser select <sel> <val>      # Select dropdown option
+acbrowser check <sel>             # Check checkbox
+acbrowser uncheck <sel>           # Uncheck checkbox
+acbrowser scroll <dir> [px]       # Scroll (up/down/left/right, --selector <sel>)
+acbrowser scrollintoview <sel>    # Scroll element into view
+acbrowser drag <src> <dst>        # Drag and drop
+acbrowser upload <sel> <files>    # Upload files
+acbrowser screenshot [path]       # Screenshot (--full for full page)
+acbrowser screenshot --annotate   # Annotated screenshot with numbered element labels
+acbrowser screenshot --screenshot-dir ./shots    # Save to custom directory
+acbrowser screenshot --screenshot-format jpeg --screenshot-quality 80
+acbrowser pdf <path>              # Save page as PDF
+acbrowser snapshot                # Accessibility tree with refs
+acbrowser eval <js>               # Run JavaScript
+acbrowser connect <port|url>      # Connect to browser via CDP
+acbrowser stream enable [--port <port>]  # Start runtime WebSocket streaming
+acbrowser stream status           # Show runtime streaming state and bound port
+acbrowser stream disable          # Stop runtime WebSocket streaming
+acbrowser close                   # Close browser (aliases: quit, exit)
+acbrowser close --all             # Close all active sessions
 ```
 
 ## Get info
 
 ```bash
-agent-browser get text <sel>          # Get text content
-agent-browser get html <sel>          # Get innerHTML
-agent-browser get value <sel>         # Get input value
-agent-browser get attr <sel> <attr>   # Get attribute
-agent-browser get title               # Get page title
-agent-browser get url                 # Get current URL
-agent-browser get cdp-url             # Get CDP WebSocket URL
-agent-browser get count <sel>         # Count matching elements
-agent-browser get box <sel>           # Get bounding box
-agent-browser get styles <sel>        # Get computed styles
+acbrowser get text <sel>          # Get text content
+acbrowser get html <sel>          # Get innerHTML
+acbrowser get value <sel>         # Get input value
+acbrowser get attr <sel> <attr>   # Get attribute
+acbrowser get title               # Get page title
+acbrowser get url                 # Get current URL
+acbrowser get cdp-url             # Get CDP WebSocket URL
+acbrowser get count <sel>         # Count matching elements
+acbrowser get box <sel>           # Get bounding box
+acbrowser get styles <sel>        # Get computed styles
 ```
 
 ## Check state
 
 ```bash
-agent-browser is visible <sel>        # Check if visible
-agent-browser is enabled <sel>        # Check if enabled
-agent-browser is checked <sel>        # Check if checked
+acbrowser is visible <sel>        # Check if visible
+acbrowser is enabled <sel>        # Check if enabled
+acbrowser is checked <sel>        # Check if checked
 ```
 
 ## Find elements
@@ -65,16 +65,16 @@ agent-browser is checked <sel>        # Check if checked
 Semantic locators with actions (`click`, `fill`, `type`, `hover`, `focus`, `check`, `uncheck`, `text`):
 
 ```bash
-agent-browser find role <role> <action> [value]
-agent-browser find text <text> <action>
-agent-browser find label <label> <action> [value]
-agent-browser find placeholder <ph> <action> [value]
-agent-browser find alt <text> <action>
-agent-browser find title <text> <action>
-agent-browser find testid <id> <action> [value]
-agent-browser find first <sel> <action> [value]
-agent-browser find last <sel> <action> [value]
-agent-browser find nth <n> <sel> <action> [value]
+acbrowser find role <role> <action> [value]
+acbrowser find text <text> <action>
+acbrowser find label <label> <action> [value]
+acbrowser find placeholder <ph> <action> [value]
+acbrowser find alt <text> <action>
+acbrowser find title <text> <action>
+acbrowser find testid <id> <action> [value]
+acbrowser find first <sel> <action> [value]
+acbrowser find last <sel> <action> [value]
+acbrowser find nth <n> <sel> <action> [value]
 ```
 
 Options:
@@ -85,33 +85,33 @@ Options:
 Examples:
 
 ```bash
-agent-browser find role button click --name "Submit"
-agent-browser find label "Email" fill "test@test.com"
-agent-browser find alt "Logo" click
-agent-browser find first ".item" click
-agent-browser find last ".item" text
-agent-browser find nth 2 ".card" hover
+acbrowser find role button click --name "Submit"
+acbrowser find label "Email" fill "test@test.com"
+acbrowser find alt "Logo" click
+acbrowser find first ".item" click
+acbrowser find last ".item" text
+acbrowser find nth 2 ".card" hover
 ```
 
 ## Wait
 
 ```bash
-agent-browser wait <selector>         # Wait for element
-agent-browser wait <ms>               # Wait for time
-agent-browser wait --text "Welcome"   # Wait for text (substring match)
-agent-browser wait --url "**/dash"    # Wait for URL pattern
-agent-browser wait --load networkidle # Wait for load state
-agent-browser wait --fn "condition"   # Wait for JS condition
-agent-browser wait --download [path]  # Wait for download
-agent-browser wait --fn "!document.body.innerText.includes('Loading...')"  # Wait for text to disappear
-agent-browser wait "#spinner" --state hidden           # Wait for element to disappear
+acbrowser wait <selector>         # Wait for element
+acbrowser wait <ms>               # Wait for time
+acbrowser wait --text "Welcome"   # Wait for text (substring match)
+acbrowser wait --url "**/dash"    # Wait for URL pattern
+acbrowser wait --load networkidle # Wait for load state
+acbrowser wait --fn "condition"   # Wait for JS condition
+acbrowser wait --download [path]  # Wait for download
+acbrowser wait --fn "!document.body.innerText.includes('Loading...')"  # Wait for text to disappear
+acbrowser wait "#spinner" --state hidden           # Wait for element to disappear
 ```
 
 ## Downloads
 
 ```bash
-agent-browser download <sel> <path>   # Click element to trigger download
-agent-browser wait --download [path]  # Wait for any download to complete
+acbrowser download <sel> <path>   # Click element to trigger download
+acbrowser wait --download [path]  # Wait for any download to complete
 ```
 
 Use `--download-path <dir>` (or `AGENT_BROWSER_DOWNLOAD_PATH` env) to set a default download directory. Without it, downloads go to a temporary directory that is deleted when the browser closes.
@@ -119,83 +119,83 @@ Use `--download-path <dir>` (or `AGENT_BROWSER_DOWNLOAD_PATH` env) to set a defa
 ## Mouse
 
 ```bash
-agent-browser mouse move <x> <y>      # Move mouse
-agent-browser mouse down [button]     # Press button
-agent-browser mouse up [button]       # Release button
-agent-browser mouse wheel <dy> [dx]   # Scroll wheel
+acbrowser mouse move <x> <y>      # Move mouse
+acbrowser mouse down [button]     # Press button
+acbrowser mouse up [button]       # Release button
+acbrowser mouse wheel <dy> [dx]   # Scroll wheel
 ```
 
 ## Clipboard
 
 ```bash
-agent-browser clipboard read                      # Read text from clipboard
-agent-browser clipboard write "Hello, World!"     # Write text to clipboard
-agent-browser clipboard copy                      # Copy current selection (Ctrl+C)
-agent-browser clipboard paste                     # Paste from clipboard (Ctrl+V)
+acbrowser clipboard read                      # Read text from clipboard
+acbrowser clipboard write "Hello, World!"     # Write text to clipboard
+acbrowser clipboard copy                      # Copy current selection (Ctrl+C)
+acbrowser clipboard paste                     # Paste from clipboard (Ctrl+V)
 ```
 
 ## Settings
 
 ```bash
-agent-browser set viewport <w> <h> [scale]  # Set viewport size (scale for retina, e.g. 2)
-agent-browser set device <name>       # Emulate device ("iPhone 14")
-agent-browser set geo <lat> <lng>     # Set geolocation
-agent-browser set offline [on|off]    # Toggle offline mode
-agent-browser set headers <json>      # Extra HTTP headers
-agent-browser set credentials <u> <p> # HTTP basic auth
-agent-browser set media [dark|light]  # Emulate color scheme (persists for session)
+acbrowser set viewport <w> <h> [scale]  # Set viewport size (scale for retina, e.g. 2)
+acbrowser set device <name>       # Emulate device ("iPhone 14")
+acbrowser set geo <lat> <lng>     # Set geolocation
+acbrowser set offline [on|off]    # Toggle offline mode
+acbrowser set headers <json>      # Extra HTTP headers
+acbrowser set credentials <u> <p> # HTTP basic auth
+acbrowser set media [dark|light]  # Emulate color scheme (persists for session)
 ```
 
 Use `--color-scheme` for persistent dark/light mode across all commands:
 
 ```bash
-agent-browser --color-scheme dark open https://example.com
+acbrowser --color-scheme dark open https://example.com
 ```
 
 ## Cookies & storage
 
 ```bash
-agent-browser cookies                 # Get all cookies
-agent-browser cookies set <name> <val> # Set cookie
-agent-browser cookies clear           # Clear cookies
+acbrowser cookies                 # Get all cookies
+acbrowser cookies set <name> <val> # Set cookie
+acbrowser cookies clear           # Clear cookies
 
-agent-browser storage local           # Get all localStorage
-agent-browser storage local <key>     # Get specific key
-agent-browser storage local set <k> <v>  # Set value
-agent-browser storage local clear     # Clear all
+acbrowser storage local           # Get all localStorage
+acbrowser storage local <key>     # Get specific key
+acbrowser storage local set <k> <v>  # Set value
+acbrowser storage local clear     # Clear all
 
-agent-browser storage session         # Same for sessionStorage
+acbrowser storage session         # Same for sessionStorage
 ```
 
 ## Network
 
 ```bash
-agent-browser network route <url>              # Intercept requests
-agent-browser network route <url> --abort      # Block requests
-agent-browser network route <url> --body <json>  # Mock response
-agent-browser network unroute [url]            # Remove routes
-agent-browser network requests                 # View tracked requests
-agent-browser network requests --clear         # Clear request log
-agent-browser network requests --filter <pat>  # Filter by URL pattern
-agent-browser network requests --type xhr,fetch  # Filter by resource type
-agent-browser network requests --method POST   # Filter by HTTP method
-agent-browser network requests --status 2xx    # Filter by status (200, 2xx, 400-499)
-agent-browser network request <requestId>      # View full request/response detail
-agent-browser network har start                # Start HAR recording
-agent-browser network har stop [output.har]    # Stop and save HAR (temp path if omitted)
+acbrowser network route <url>              # Intercept requests
+acbrowser network route <url> --abort      # Block requests
+acbrowser network route <url> --body <json>  # Mock response
+acbrowser network unroute [url]            # Remove routes
+acbrowser network requests                 # View tracked requests
+acbrowser network requests --clear         # Clear request log
+acbrowser network requests --filter <pat>  # Filter by URL pattern
+acbrowser network requests --type xhr,fetch  # Filter by resource type
+acbrowser network requests --method POST   # Filter by HTTP method
+acbrowser network requests --status 2xx    # Filter by status (200, 2xx, 400-499)
+acbrowser network request <requestId>      # View full request/response detail
+acbrowser network har start                # Start HAR recording
+acbrowser network har stop [output.har]    # Stop and save HAR (temp path if omitted)
 ```
 
 ## Tabs & frames
 
 ```bash
-agent-browser tab                     # List tabs
-agent-browser tab new [url]           # New tab
-agent-browser tab <n>                 # Switch to tab
-agent-browser tab close [n]           # Close tab
-agent-browser window new              # Open new browser window
-agent-browser frame <sel>             # Switch to iframe by CSS selector
-agent-browser frame @e3               # Switch to iframe by element ref
-agent-browser frame main              # Back to main frame
+acbrowser tab                     # List tabs
+acbrowser tab new [url]           # New tab
+acbrowser tab <n>                 # Switch to tab
+acbrowser tab close [n]           # Close tab
+acbrowser window new              # Open new browser window
+acbrowser frame <sel>             # Switch to iframe by CSS selector
+acbrowser frame @e3               # Switch to iframe by element ref
+acbrowser frame main              # Back to main frame
 ```
 
 ### Iframe support
@@ -205,19 +205,19 @@ inlined beneath the iframe element in the snapshot output. Refs assigned to elem
 frame context, so `click`, `fill`, and other interactions work without manually switching frames.
 
 ```bash
-agent-browser snapshot -i
+acbrowser snapshot -i
 # @e3 [Iframe] "payment-frame"
 #   @e4 [input] "Card number"
 #   @e5 [button] "Pay"
 
 # Interact directly using refs — no frame switch needed
-agent-browser fill @e4 "4111111111111111"
-agent-browser click @e5
+acbrowser fill @e4 "4111111111111111"
+acbrowser click @e5
 
 # Or switch frame context for scoped snapshots
-agent-browser frame @e3
-agent-browser snapshot -i             # Only elements inside that iframe
-agent-browser frame main              # Return to main frame
+acbrowser frame @e3
+acbrowser snapshot -i             # Only elements inside that iframe
+acbrowser frame main              # Return to main frame
 ```
 
 The `frame` command accepts element refs (`@e3`), CSS selectors (`"#my-iframe"`), or frame name/URL.
@@ -225,9 +225,9 @@ The `frame` command accepts element refs (`@e3`), CSS selectors (`"#my-iframe"`)
 ## Dialogs
 
 ```bash
-agent-browser dialog accept [text]    # Accept dialog (with optional prompt text)
-agent-browser dialog dismiss          # Dismiss dialog
-agent-browser dialog status           # Check if a dialog is currently open
+acbrowser dialog accept [text]    # Accept dialog (with optional prompt text)
+acbrowser dialog dismiss          # Dismiss dialog
+acbrowser dialog status           # Check if a dialog is currently open
 ```
 
 By default, `alert` and `beforeunload` dialogs are automatically accepted so they never block the agent. `confirm` and `prompt` dialogs still require explicit handling. Use `--no-auto-dialog` (or `AGENT_BROWSER_NO_AUTO_DIALOG=1`) to disable automatic handling.
@@ -237,10 +237,10 @@ When a JavaScript dialog (`alert`, `confirm`, `prompt`) is pending, all command 
 ## Streaming
 
 ```bash
-agent-browser stream enable           # Start runtime WebSocket streaming on an auto-selected port
-agent-browser stream enable --port 9223  # Bind a specific localhost port
-agent-browser stream status           # Show enabled state, port, browser connection, screencasting
-agent-browser stream disable          # Stop runtime streaming and remove the .stream metadata file
+acbrowser stream enable           # Start runtime WebSocket streaming on an auto-selected port
+acbrowser stream enable --port 9223  # Bind a specific localhost port
+acbrowser stream status           # Show enabled state, port, browser connection, screencasting
+acbrowser stream disable          # Stop runtime streaming and remove the .stream metadata file
 ```
 
 Streaming is enabled automatically for all sessions. Use these commands to check status, re-enable on a specific port, or disable streaming.
@@ -248,30 +248,30 @@ Streaming is enabled automatically for all sessions. Use these commands to check
 ## Debug
 
 ```bash
-agent-browser trace start [path]      # Start trace
-agent-browser trace stop [path]       # Stop and save trace
-agent-browser profiler start          # Start Chrome DevTools profiling
-agent-browser profiler stop [path]    # Stop and save profile (.json)
-agent-browser record start <path>     # Start video recording (WebM)
-agent-browser record stop             # Stop and save video
-agent-browser record restart <path>   # Stop current and start new recording
-agent-browser console                 # View console messages
-agent-browser console --json          # JSON output with raw CDP args
-agent-browser console --clear         # Clear console log
-agent-browser errors                  # View page errors
-agent-browser errors --clear          # Clear error log
-agent-browser highlight <sel>         # Highlight element
-agent-browser inspect                 # Open Chrome DevTools for the active page
+acbrowser trace start [path]      # Start trace
+acbrowser trace stop [path]       # Stop and save trace
+acbrowser profiler start          # Start Chrome DevTools profiling
+acbrowser profiler stop [path]    # Stop and save profile (.json)
+acbrowser record start <path>     # Start video recording (WebM)
+acbrowser record stop             # Stop and save video
+acbrowser record restart <path>   # Stop current and start new recording
+acbrowser console                 # View console messages
+acbrowser console --json          # JSON output with raw CDP args
+acbrowser console --clear         # Clear console log
+acbrowser errors                  # View page errors
+acbrowser errors --clear          # Clear error log
+acbrowser highlight <sel>         # Highlight element
+acbrowser inspect                 # Open Chrome DevTools for the active page
 ```
 
 ## Auth vault
 
 ```bash
-agent-browser auth save <name> [opts]    # Save auth profile
-agent-browser auth login <name>          # Login using saved credentials
-agent-browser auth list                  # List saved profiles (names and URLs only)
-agent-browser auth show <name>           # Show profile metadata (no passwords)
-agent-browser auth delete <name>         # Delete a saved profile
+acbrowser auth save <name> [opts]    # Save auth profile
+acbrowser auth login <name>          # Login using saved credentials
+acbrowser auth list                  # List saved profiles (names and URLs only)
+acbrowser auth show <name>           # Show profile metadata (no passwords)
+acbrowser auth delete <name>         # Delete a saved profile
 ```
 
 Save options:
@@ -287,9 +287,9 @@ Save options:
 `auth login` navigates with `load` and then waits for the username/password/submit selectors to appear before interacting. This improves reliability on SPA login pages where fields render after initial page load.
 
 ```bash
-echo "pass" | agent-browser auth save github --url https://github.com/login --username user --password-stdin
-agent-browser auth login github
-agent-browser auth list
+echo "pass" | acbrowser auth save github --url https://github.com/login --username user --password-stdin
+acbrowser auth login github
+acbrowser auth list
 ```
 
 ## Confirmation
@@ -297,66 +297,66 @@ agent-browser auth list
 When `--confirm-actions` is set, certain action categories return a `confirmation_required` response instead of executing immediately. Use `confirm` or `deny` to approve or reject the action.
 
 ```bash
-agent-browser confirm <confirmation-id>  # Approve a pending action
-agent-browser deny <confirmation-id>     # Deny a pending action
+acbrowser confirm <confirmation-id>  # Approve a pending action
+acbrowser deny <confirmation-id>     # Deny a pending action
 ```
 
 Pending confirmations auto-deny after 60 seconds.
 
 ```bash
-agent-browser --confirm-actions eval,download eval "document.title"
+acbrowser --confirm-actions eval,download eval "document.title"
 # Returns confirmation_required with ID
-agent-browser confirm c_8f3a1234
+acbrowser confirm c_8f3a1234
 ```
 
 ## State management
 
 ```bash
-agent-browser state save <path>       # Save auth state to file
-agent-browser state load <path>       # Load auth state from file
-agent-browser state list              # List saved state files
-agent-browser state show <file>       # Show state summary
-agent-browser state rename <old> <new> # Rename state file
-agent-browser state clear [name]      # Clear states for session name
-agent-browser state clear --all       # Clear all saved states
-agent-browser state clean --older-than <days>  # Delete old states
+acbrowser state save <path>       # Save auth state to file
+acbrowser state load <path>       # Load auth state from file
+acbrowser state list              # List saved state files
+acbrowser state show <file>       # Show state summary
+acbrowser state rename <old> <new> # Rename state file
+acbrowser state clear [name]      # Clear states for session name
+acbrowser state clear --all       # Clear all saved states
+acbrowser state clean --older-than <days>  # Delete old states
 ```
 
 ## Sessions
 
 ```bash
-agent-browser session                 # Show current session name
-agent-browser session list            # List active sessions
+acbrowser session                 # Show current session name
+acbrowser session list            # List active sessions
 ```
 
 ## Chrome profiles
 
 ```bash
-agent-browser profiles               # List available Chrome profiles
-agent-browser profiles --json        # List profiles as JSON
-agent-browser --profile Default open https://gmail.com  # Reuse a profile's login state
+acbrowser profiles               # List available Chrome profiles
+acbrowser profiles --json        # List profiles as JSON
+acbrowser --profile Default open https://gmail.com  # Reuse a profile's login state
 ```
 
 ## Dashboard
 
 ```bash
-agent-browser dashboard [start]       # Start the dashboard server (default port: 4848)
-agent-browser dashboard start --port <n>  # Start on a specific port
-agent-browser dashboard stop          # Stop the dashboard server
+acbrowser dashboard [start]       # Start the dashboard server (default port: 4848)
+acbrowser dashboard start --port <n>  # Start on a specific port
+acbrowser dashboard stop          # Stop the dashboard server
 ```
 
 ## Chat
 
-Use natural language to control the browser via AI. The `chat` command translates instructions into agent-browser commands, executes them, and streams the AI response. Requires `AI_GATEWAY_API_KEY` to be set.
+Use natural language to control the browser via AI. The `chat` command translates instructions into acbrowser commands, executes them, and streams the AI response. Requires `AI_GATEWAY_API_KEY` to be set.
 
 ```bash
-agent-browser chat "open google.com and search for cats"     # Single-shot instruction
-agent-browser chat                                           # Interactive REPL (type quit to exit)
-echo "summarize this page" | agent-browser chat              # Piped input
-agent-browser -q chat "summarize this page"                  # Quiet: text only, no tool calls shown
-agent-browser -v chat "fill in the login form"               # Verbose: show commands and their output
-agent-browser --model openai/gpt-4o chat "take a screenshot" # Override the default AI model
-agent-browser --json chat "open example.com"                 # Structured JSON output
+acbrowser chat "open google.com and search for cats"     # Single-shot instruction
+acbrowser chat                                           # Interactive REPL (type quit to exit)
+echo "summarize this page" | acbrowser chat              # Piped input
+acbrowser -q chat "summarize this page"                  # Quiet: text only, no tool calls shown
+acbrowser -v chat "fill in the login form"               # Verbose: show commands and their output
+acbrowser --model openai/gpt-4o chat "take a screenshot" # Override the default AI model
+acbrowser --json chat "open example.com"                 # Structured JSON output
 ```
 
 Chat-specific options:
@@ -370,9 +370,9 @@ Chat-specific options:
 ## Navigation
 
 ```bash
-agent-browser back                    # Go back
-agent-browser forward                 # Go forward
-agent-browser reload                  # Reload page
+acbrowser back                    # Go back
+acbrowser forward                 # Go forward
+acbrowser reload                  # Reload page
 ```
 
 ## Global options
@@ -422,10 +422,10 @@ Execute multiple commands in a single invocation. Commands can be passed as quot
 
 ```bash
 # Argument mode: each quoted argument is a full command
-agent-browser batch "open https://example.com" "snapshot -i" "screenshot"
+acbrowser batch "open https://example.com" "snapshot -i" "screenshot"
 
 # With --bail to stop on first error
-agent-browser batch --bail "open https://example.com" "click @e1" "screenshot"
+acbrowser batch --bail "open https://example.com" "click @e1" "screenshot"
 
 # Stdin mode: pipe commands as JSON
 echo '[
@@ -433,7 +433,7 @@ echo '[
   ["snapshot", "-i"],
   ["click", "@e1"],
   ["screenshot", "result.png"]
-]' | agent-browser batch --json
+]' | acbrowser batch --json
 ```
 
 <table>
@@ -451,9 +451,9 @@ echo '[
 Chain commands with `&&` in a single shell invocation. The browser persists via a background daemon, so chaining works naturally and is more efficient than separate calls:
 
 ```bash
-agent-browser open example.com && agent-browser wait --load networkidle && agent-browser snapshot -i
-agent-browser fill @e1 "user@example.com" && agent-browser fill @e2 "pass" && agent-browser click @e3
-agent-browser open example.com && agent-browser wait --load networkidle && agent-browser screenshot page.png
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser snapshot -i
+acbrowser fill @e1 "user@example.com" && acbrowser fill @e2 "pass" && acbrowser click @e3
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser screenshot page.png
 ```
 
 Use `&&` when you don't need to read intermediate output. Run commands separately when you need to parse output first (e.g., snapshot to discover refs, then interact with those refs).
@@ -463,9 +463,9 @@ Use `&&` when you don't need to read intermediate output. Run commands separatel
 Open local files (PDFs, HTML) using `file://` URLs:
 
 ```bash
-agent-browser --allow-file-access open file:///path/to/document.pdf
-agent-browser --allow-file-access open file:///path/to/page.html
-agent-browser screenshot output.png
+acbrowser --allow-file-access open file:///path/to/document.pdf
+acbrowser --allow-file-access open file:///path/to/page.html
+acbrowser screenshot output.png
 ```
 
 The `--allow-file-access` flag enables JavaScript to access other local files. Chromium only.

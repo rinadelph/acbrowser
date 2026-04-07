@@ -1,14 +1,14 @@
 # Observability Dashboard
 
-Monitor agent-browser sessions in real time with a local web dashboard showing a live browser viewport and command activity feed.
+Monitor acbrowser sessions in real time with a local web dashboard showing a live browser viewport and command activity feed.
 
 ## Usage
 
 The dashboard is bundled into the binary and requires no separate install. Start the server and open any session:
 
 ```bash
-agent-browser dashboard start
-agent-browser open example.com
+acbrowser dashboard start
+acbrowser open example.com
 ```
 
 Then open `http://localhost:4848` in your browser to see the live dashboard.
@@ -20,15 +20,15 @@ All sessions automatically stream to the dashboard. No extra flags are needed.
 By default each session binds its WebSocket stream server to an OS-assigned port. To use a specific port, set the `AGENT_BROWSER_STREAM_PORT` environment variable:
 
 ```bash
-AGENT_BROWSER_STREAM_PORT=9223 agent-browser open example.com
+AGENT_BROWSER_STREAM_PORT=9223 acbrowser open example.com
 ```
 
 You can also use the runtime commands to control streaming on a running session:
 
 ```bash
-agent-browser stream enable --port 9223
-agent-browser stream status
-agent-browser stream disable
+acbrowser stream enable --port 9223
+acbrowser stream status
+acbrowser stream disable
 ```
 
 ## Dashboard features
@@ -134,7 +134,7 @@ The Chat tab is always visible. Set the API key to enable responses:
 
 ```bash
 export AI_GATEWAY_API_KEY=gw_your_key_here
-agent-browser dashboard start
+acbrowser dashboard start
 ```
 
 Optionally override the gateway URL or model:

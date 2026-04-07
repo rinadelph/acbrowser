@@ -23,24 +23,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://agent-browser.dev"),
+  metadataBase: new URL("https://acbrowser.dev"),
   title: {
-    default: "agent-browser | Browser Automation for AI",
-    template: "%s | agent-browser",
+    default: "acbrowser | Browser Automation for AI",
+    template: "%s | acbrowser",
   },
   description: "Browser automation CLI for AI agents",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "https://agent-browser.dev",
-    siteName: "agent-browser",
-    title: "agent-browser | Browser Automation for AI",
+    url: "https://acbrowser.dev",
+    siteName: "acbrowser",
+    title: "acbrowser | Browser Automation for AI",
     description: "Browser automation CLI for AI agents",
-    images: [{ url: "/og", width: 1200, height: 630, alt: "agent-browser" }],
+    images: [{ url: "/og", width: 1200, height: 630, alt: "acbrowser" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "agent-browser | Browser Automation for AI",
+    title: "acbrowser | Browser Automation for AI",
     description: "Browser automation CLI for AI agents",
     images: ["/og"],
   },

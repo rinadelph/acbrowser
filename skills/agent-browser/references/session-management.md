@@ -20,14 +20,14 @@ Use `--session` flag to isolate browser contexts:
 
 ```bash
 # Session 1: Authentication flow
-agent-browser --session auth open https://app.example.com/login
+acbrowser --session auth open https://app.example.com/login
 
 # Session 2: Public browsing (separate cookies, storage)
-agent-browser --session public open https://example.com
+acbrowser --session public open https://example.com
 
 # Commands are isolated by session
-agent-browser --session auth fill @e1 "user@example.com"
-agent-browser --session public get text body
+acbrowser --session auth fill @e1 "user@example.com"
+acbrowser --session public get text body
 ```
 
 ## Session Isolation Properties
@@ -46,17 +46,17 @@ Each session has independent:
 
 ```bash
 # Save cookies, storage, and auth state
-agent-browser state save /path/to/auth-state.json
+acbrowser state save /path/to/auth-state.json
 ```
 
 ### Load Session State
 
 ```bash
 # Restore saved state
-agent-browser state load /path/to/auth-state.json
+acbrowser state load /path/to/auth-state.json
 
 # Continue with authenticated session
-agent-browser open https://app.example.com/dashboard
+acbrowser open https://app.example.com/dashboard
 ```
 
 ### State File Contents
@@ -82,19 +82,19 @@ STATE_FILE="/tmp/auth-state.json"
 
 # Check if we have saved state
 if [[ -f "$STATE_FILE" ]]; then
-    agent-browser state load "$STATE_FILE"
-    agent-browser open https://app.example.com/dashboard
+    acbrowser state load "$STATE_FILE"
+    acbrowser open https://app.example.com/dashboard
 else
     # Perform login
-    agent-browser open https://app.example.com/login
-    agent-browser snapshot -i
-    agent-browser fill @e1 "$USERNAME"
-    agent-browser fill @e2 "$PASSWORD"
-    agent-browser click @e3
-    agent-browser wait --load networkidle
+    acbrowser open https://app.example.com/login
+    acbrowser snapshot -i
+    acbrowser fill @e1 "$USERNAME"
+    acbrowser fill @e2 "$PASSWORD"
+    acbrowser click @e3
+    acbrowser wait --load networkidle
 
     # Save for future use
-    agent-browser state save "$STATE_FILE"
+    acbrowser state save "$STATE_FILE"
 fi
 ```
 
@@ -105,32 +105,32 @@ fi
 # Scrape multiple sites concurrently
 
 # Start all sessions
-agent-browser --session site1 open https://site1.com &
-agent-browser --session site2 open https://site2.com &
-agent-browser --session site3 open https://site3.com &
+acbrowser --session site1 open https://site1.com &
+acbrowser --session site2 open https://site2.com &
+acbrowser --session site3 open https://site3.com &
 wait
 
 # Extract from each
-agent-browser --session site1 get text body > site1.txt
-agent-browser --session site2 get text body > site2.txt
-agent-browser --session site3 get text body > site3.txt
+acbrowser --session site1 get text body > site1.txt
+acbrowser --session site2 get text body > site2.txt
+acbrowser --session site3 get text body > site3.txt
 
 # Cleanup
-agent-browser --session site1 close
-agent-browser --session site2 close
-agent-browser --session site3 close
+acbrowser --session site1 close
+acbrowser --session site2 close
+acbrowser --session site3 close
 ```
 
 ### A/B Testing Sessions
 
 ```bash
 # Test different user experiences
-agent-browser --session variant-a open "https://app.com?variant=a"
-agent-browser --session variant-b open "https://app.com?variant=b"
+acbrowser --session variant-a open "https://app.com?variant=a"
+acbrowser --session variant-b open "https://app.com?variant=b"
 
 # Compare
-agent-browser --session variant-a screenshot /tmp/variant-a.png
-agent-browser --session variant-b screenshot /tmp/variant-b.png
+acbrowser --session variant-a screenshot /tmp/variant-a.png
+acbrowser --session variant-b screenshot /tmp/variant-b.png
 ```
 
 ## Default Session
@@ -139,19 +139,19 @@ When `--session` is omitted, commands use the default session:
 
 ```bash
 # These use the same default session
-agent-browser open https://example.com
-agent-browser snapshot -i
-agent-browser close  # Closes default session
+acbrowser open https://example.com
+acbrowser snapshot -i
+acbrowser close  # Closes default session
 ```
 
 ## Session Cleanup
 
 ```bash
 # Close specific session
-agent-browser --session auth close
+acbrowser --session auth close
 
 # List active sessions
-agent-browser session list
+acbrowser session list
 ```
 
 ## Best Practices
@@ -160,19 +160,19 @@ agent-browser session list
 
 ```bash
 # GOOD: Clear purpose
-agent-browser --session github-auth open https://github.com
-agent-browser --session docs-scrape open https://docs.example.com
+acbrowser --session github-auth open https://github.com
+acbrowser --session docs-scrape open https://docs.example.com
 
 # AVOID: Generic names
-agent-browser --session s1 open https://github.com
+acbrowser --session s1 open https://github.com
 ```
 
 ### 2. Always Clean Up
 
 ```bash
 # Close sessions when done
-agent-browser --session auth close
-agent-browser --session scrape close
+acbrowser --session auth close
+acbrowser --session scrape close
 ```
 
 ### 3. Handle State Files Securely
@@ -189,5 +189,5 @@ rm /tmp/auth-state.json
 
 ```bash
 # Set timeout for automated scripts
-timeout 60 agent-browser --session long-task get text body
+timeout 60 acbrowser --session long-task get text body
 ```

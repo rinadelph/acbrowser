@@ -1,7 +1,7 @@
 # Next.js + Vercel
 
-Run agent-browser from a Next.js app on Vercel using Vercel Sandbox.
-A Linux microVM spins up on demand, runs agent-browser + Chrome, and
+Run acbrowser from a Next.js app on Vercel using Vercel Sandbox.
+A Linux microVM spins up on demand, runs acbrowser + Chrome, and
 shuts down. No binary size limits, no Chromium bundling complexity.
 
 ## Setup
@@ -14,7 +14,7 @@ pnpm add @vercel/sandbox
 
 The Vercel Sandbox runs Amazon Linux. Chromium requires system libraries
 that are not installed by default, so fresh sandboxes need a `dnf install`
-step before agent-browser can launch Chrome. Use a sandbox snapshot
+step before acbrowser can launch Chrome. Use a sandbox snapshot
 (below) to skip this entirely in production.
 
 ```ts
@@ -64,8 +64,8 @@ async function withBrowser<T>(
       "-c",
       `sudo dnf clean all 2>&1 && sudo dnf install -y --skip-broken ${CHROMIUM_SYSTEM_DEPS.join(" ")} 2>&1 && sudo ldconfig 2>&1`,
     ]);
-    await sandbox.runCommand("npm", ["install", "-g", "agent-browser"]);
-    await sandbox.runCommand("npx", ["agent-browser", "install"]);
+    await sandbox.runCommand("npm", ["install", "-g", "acbrowser"]);
+    await sandbox.runCommand("npx", ["acbrowser", "install"]);
   }
 
   try {
@@ -77,30 +77,30 @@ async function withBrowser<T>(
 
 export async function screenshotUrl(url: string) {
   return withBrowser(async (sandbox) => {
-    await sandbox.runCommand("agent-browser", ["open", url]);
+    await sandbox.runCommand("acbrowser", ["open", url]);
 
-    const ssResult = await sandbox.runCommand("agent-browser", [
+    const ssResult = await sandbox.runCommand("acbrowser", [
       "screenshot", "--json",
     ]);
     const ssPath = JSON.parse(await ssResult.stdout())?.data?.path;
     const b64Result = await sandbox.runCommand("base64", ["-w", "0", ssPath]);
     const screenshot = (await b64Result.stdout()).trim();
 
-    await sandbox.runCommand("agent-browser", ["close"]);
+    await sandbox.runCommand("acbrowser", ["close"]);
     return { ok: true, screenshot };
   });
 }
 
 export async function snapshotUrl(url: string) {
   return withBrowser(async (sandbox) => {
-    await sandbox.runCommand("agent-browser", ["open", url]);
+    await sandbox.runCommand("acbrowser", ["open", url]);
 
-    const result = await sandbox.runCommand("agent-browser", [
+    const result = await sandbox.runCommand("acbrowser", [
       "snapshot", "-i", "-c",
     ]);
     const snapshot = await result.stdout();
 
-    await sandbox.runCommand("agent-browser", ["close"]);
+    await sandbox.runCommand("acbrowser", ["close"]);
     return { ok: true, snapshot };
   });
 }
@@ -109,13 +109,13 @@ export async function snapshotUrl(url: string) {
 ## Sandbox snapshots
 
 Without optimization, each Sandbox run installs system dependencies +
-agent-browser + Chromium from scratch (~30 seconds). A **sandbox snapshot**
+acbrowser + Chromium from scratch (~30 seconds). A **sandbox snapshot**
 is a saved VM image with everything pre-installed -- like a Docker image
 for Vercel Sandbox. When `AGENT_BROWSER_SNAPSHOT_ID` is set, the sandbox
 boots from that image instead of installing, bringing startup down to
 sub-second.
 
-This is different from an agent-browser *accessibility snapshot* (which
+This is different from an acbrowser *accessibility snapshot* (which
 dumps a page's accessibility tree). A sandbox snapshot is a Vercel
 infrastructure concept.
 
@@ -126,7 +126,7 @@ npx tsx scripts/create-snapshot.ts
 ```
 
 The script spins up a fresh sandbox, installs system dependencies +
-agent-browser + Chromium, saves the VM state, and prints the snapshot ID:
+acbrowser + Chromium, saves the VM state, and prints the snapshot ID:
 
 ```
 AGENT_BROWSER_SNAPSHOT_ID=snap_xxxxxxxxxxxx
@@ -162,13 +162,13 @@ For recurring tasks like daily monitoring, use Vercel Cron Jobs:
 // app/api/cron/monitor/route.ts
 export async function GET() {
   const result = await withBrowser(async (sandbox) => {
-    await sandbox.runCommand("agent-browser", [
+    await sandbox.runCommand("acbrowser", [
       "open", "https://example.com/pricing",
     ]);
-    const snap = await sandbox.runCommand("agent-browser", [
+    const snap = await sandbox.runCommand("acbrowser", [
       "snapshot", "-i", "-c",
     ]);
-    await sandbox.runCommand("agent-browser", ["close"]);
+    await sandbox.runCommand("acbrowser", ["close"]);
     return await snap.stdout();
   });
 
@@ -204,4 +204,4 @@ export async function GET() {
 
 A working demo with streaming progress UI, rate limiting, and a
 deploy-to-Vercel button is at
-[`examples/environments/`](https://github.com/vercel-labs/agent-browser/tree/main/examples/environments).
+[`examples/environments/`](https://github.com/vercel-labs/acbrowser/tree/main/examples/environments).

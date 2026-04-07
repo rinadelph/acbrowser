@@ -809,7 +809,7 @@ async fn find_cursor_interactive_elements(
         )
         .await
     {
-        eprintln!("[agent-browser] Warning: failed to clean up data-__ab-ci attributes: {e}");
+        eprintln!("[acbrowser] Warning: failed to clean up data-__ab-ci attributes: {e}");
     }
 
     // Build the map

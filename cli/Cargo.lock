@@ -44,7 +44,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "agent-browser"
+name = "acbrowser"
 version = "0.25.3"
 dependencies = [
  "aes-gcm",

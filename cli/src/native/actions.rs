@@ -1102,7 +1102,7 @@ impl DaemonState {
                 }
                 Err(broadcast::error::TryRecvError::Empty) => break,
                 Err(broadcast::error::TryRecvError::Lagged(n)) => {
-                    eprintln!("[agent-browser] Warning: CDP event buffer overflowed, {} events dropped. Network requests may be missing from HAR output.", n);
+                    eprintln!("[acbrowser] Warning: CDP event buffer overflowed, {} events dropped. Network requests may be missing from HAR output.", n);
                     continue;
                 }
                 Err(broadcast::error::TryRecvError::Closed) => {
@@ -4067,7 +4067,7 @@ async fn handle_pdf(cmd: &Value, state: &DaemonState) -> Result<Value, String> {
         None => {
             let dir = dirs::home_dir()
                 .unwrap_or_else(std::env::temp_dir)
-                .join(".agent-browser")
+                .join(".acbrowser")
                 .join("tmp")
                 .join("pdfs");
             let _ = std::fs::create_dir_all(&dir);
@@ -5273,7 +5273,7 @@ async fn handle_getbyrole(cmd: &Value, state: &mut DaemonState) -> Result<Value,
             const els = document.querySelectorAll('[role="{role}"], {role}');
             for (const el of els) {{
                 if ({name_match}) {{
-                    el.setAttribute('data-agent-browser-located', 'true');
+                    el.setAttribute('data-acbrowser-located', 'true');
                     return true;
                 }}
             }}
@@ -5307,7 +5307,7 @@ async fn handle_getbyrole(cmd: &Value, state: &mut DaemonState) -> Result<Value,
         return Err(format!("No element found: {}", desc));
     }
 
-    let selector = "[data-agent-browser-located='true']";
+    let selector = "[data-acbrowser-located='true']";
     let result = execute_subaction(cmd, state, selector).await;
 
     // Clean up the marker attribute
@@ -5315,7 +5315,7 @@ async fn handle_getbyrole(cmd: &Value, state: &mut DaemonState) -> Result<Value,
         if browser.active_session_id().is_ok() {
             let _ = browser
                 .evaluate(
-                    "document.querySelector('[data-agent-browser-located]')?.removeAttribute('data-agent-browser-located')",
+                    "document.querySelector('[data-acbrowser-located]')?.removeAttribute('data-acbrowser-located')",
                     None,
                 )
                 .await;
@@ -5358,7 +5358,7 @@ async fn handle_semantic_locator(
                 if (!label) return false;
                 const forId = label.getAttribute('for');
                 const target = forId ? document.getElementById(forId) : label.querySelector('input,select,textarea');
-                if (target) {{ target.setAttribute('data-agent-browser-located', 'true'); return true; }}
+                if (target) {{ target.setAttribute('data-acbrowser-located', 'true'); return true; }}
                 return false;
             }})()"#,
             match_fn = match_fn,
@@ -5366,7 +5366,7 @@ async fn handle_semantic_locator(
         "placeholder" => format!(
             r#"(() => {{
                 const el = document.querySelector('input[placeholder={val}], textarea[placeholder={val}]');
-                if (el) {{ el.setAttribute('data-agent-browser-located', 'true'); return true; }}
+                if (el) {{ el.setAttribute('data-acbrowser-located', 'true'); return true; }}
                 return false;
             }})()"#,
             val = serde_json::to_string(value).unwrap_or_default(),
@@ -5374,7 +5374,7 @@ async fn handle_semantic_locator(
         "alttext" => format!(
             r#"(() => {{
                 const el = document.querySelector('img[alt={val}], [alt={val}]');
-                if (el) {{ el.setAttribute('data-agent-browser-located', 'true'); return true; }}
+                if (el) {{ el.setAttribute('data-acbrowser-located', 'true'); return true; }}
                 return false;
             }})()"#,
             val = serde_json::to_string(value).unwrap_or_default(),
@@ -5382,7 +5382,7 @@ async fn handle_semantic_locator(
         "title" => format!(
             r#"(() => {{
                 const el = document.querySelector('[title={val}]');
-                if (el) {{ el.setAttribute('data-agent-browser-located', 'true'); return true; }}
+                if (el) {{ el.setAttribute('data-acbrowser-located', 'true'); return true; }}
                 return false;
             }})()"#,
             val = serde_json::to_string(value).unwrap_or_default(),
@@ -5390,7 +5390,7 @@ async fn handle_semantic_locator(
         "testid" => format!(
             r#"(() => {{
                 const el = document.querySelector('[data-testid={val}]');
-                if (el) {{ el.setAttribute('data-agent-browser-located', 'true'); return true; }}
+                if (el) {{ el.setAttribute('data-acbrowser-located', 'true'); return true; }}
                 return false;
             }})()"#,
             val = serde_json::to_string(value).unwrap_or_default(),
@@ -5402,7 +5402,7 @@ async fn handle_semantic_locator(
                     const all = document.querySelectorAll('*');
                     for (const el of all) {{
                         if (el.children.length === 0 && {match_fn}) {{
-                            el.setAttribute('data-agent-browser-located', 'true');
+                            el.setAttribute('data-acbrowser-located', 'true');
                             return true;
                         }}
                     }}
@@ -5436,13 +5436,13 @@ async fn handle_semantic_locator(
         return Err(format!("No element found by {} '{}'", strategy, value));
     }
 
-    let selector = "[data-agent-browser-located='true']";
+    let selector = "[data-acbrowser-located='true']";
     let action_result = execute_subaction(cmd, state, selector).await;
 
     if let Some(ref browser) = state.browser {
         let _ = browser
             .evaluate(
-                "document.querySelector('[data-agent-browser-located]')?.removeAttribute('data-agent-browser-located')",
+                "document.querySelector('[data-acbrowser-located]')?.removeAttribute('data-acbrowser-located')",
                 None,
             )
             .await;
@@ -5492,7 +5492,7 @@ async fn handle_nth(cmd: &Value, state: &mut DaemonState) -> Result<Value, Strin
             const els = document.querySelectorAll({sel});
             const idx = {idx} < 0 ? els.length + {idx} : {idx};
             if (idx < 0 || idx >= els.length) return false;
-            els[idx].setAttribute('data-agent-browser-located', 'true');
+            els[idx].setAttribute('data-acbrowser-located', 'true');
             return true;
         }})()"#,
         sel = serde_json::to_string(selector).unwrap_or_default(),
@@ -5525,13 +5525,13 @@ async fn handle_nth(cmd: &Value, state: &mut DaemonState) -> Result<Value, Strin
         ));
     }
 
-    let located = "[data-agent-browser-located='true']";
+    let located = "[data-acbrowser-located='true']";
     let action_result = execute_subaction(cmd, state, located).await;
 
     if let Some(ref browser) = state.browser {
         let _ = browser
             .evaluate(
-                "document.querySelector('[data-agent-browser-located]')?.removeAttribute('data-agent-browser-located')",
+                "document.querySelector('[data-acbrowser-located]')?.removeAttribute('data-acbrowser-located')",
                 None,
             )
             .await;
@@ -6046,7 +6046,7 @@ async fn handle_har_stop(cmd: &Value, state: &mut DaemonState) -> Result<Value, 
     let mut log = json!({
         "version": "1.2",
         "creator": {
-            "name": "agent-browser",
+            "name": "acbrowser",
             "version": env!("CARGO_PKG_VERSION")
         },
         "entries": entries
@@ -6345,9 +6345,9 @@ fn har_output_path(explicit_path: Option<&str>) -> String {
 
 fn get_har_dir() -> PathBuf {
     if let Some(home) = dirs::home_dir() {
-        home.join(".agent-browser").join("tmp").join("har")
+        home.join(".acbrowser").join("tmp").join("har")
     } else {
-        std::env::temp_dir().join("agent-browser").join("har")
+        std::env::temp_dir().join("acbrowser").join("har")
     }
 }
 
@@ -7626,7 +7626,7 @@ mod tests {
             .expect("system clock should be after unix epoch")
             .as_nanos();
         std::env::temp_dir().join(format!(
-            "agent-browser-{label}-{}-{nanos}",
+            "acbrowser-{label}-{}-{nanos}",
             std::process::id()
         ))
     }
@@ -8141,7 +8141,7 @@ mod tests {
 
         let har: Value = serde_json::from_str(&fs::read_to_string(path).unwrap()).unwrap();
         assert_eq!(har["log"]["version"], "1.2");
-        assert_eq!(har["log"]["creator"]["name"], "agent-browser");
+        assert_eq!(har["log"]["creator"]["name"], "acbrowser");
         assert!(har["log"].get("browser").is_none());
         assert_eq!(har["log"]["entries"][0]["response"]["content"]["size"], 128);
 
@@ -8151,7 +8151,7 @@ mod tests {
     #[tokio::test]
     async fn test_execute_har_stop_skips_browser_auto_launch() {
         let path = std::env::temp_dir().join(format!(
-            "agent-browser-har-stop-{}.har",
+            "acbrowser-har-stop-{}.har",
             unix_timestamp_millis()
         ));
         let mut state = DaemonState::new();

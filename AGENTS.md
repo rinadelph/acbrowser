@@ -19,7 +19,7 @@ When adding or changing user-facing features (new flags, commands, behaviors, en
 
 1. `cli/src/output.rs` — `--help` output (flags list, examples, environment variables)
 2. `README.md` — Options table, relevant feature sections, examples
-3. `skills/agent-browser/SKILL.md` — so AI agents know about the feature
+3. `skills/acbrowser/SKILL.md` — so AI agents know about the feature
 4. `docs/src/app/` — the Next.js docs site (MDX pages)
 5. Inline doc comments in the relevant source files
 
@@ -167,13 +167,13 @@ Stop the instance when done (avoids cost):
 Run unit tests on Windows:
 
 ```bash
-./scripts/windows-debug/run.sh "cd C:\agent-browser && cargo test --manifest-path cli\Cargo.toml"
+./scripts/windows-debug/run.sh "cd C:\acbrowser && cargo test --manifest-path cli\Cargo.toml"
 ```
 
 Run e2e tests on Windows:
 
 ```bash
-./scripts/windows-debug/run.sh "cd C:\agent-browser && cargo test e2e --manifest-path cli\Cargo.toml -- --ignored --test-threads=1"
+./scripts/windows-debug/run.sh "cd C:\acbrowser && cargo test e2e --manifest-path cli\Cargo.toml -- --ignored --test-threads=1"
 ```
 
 Check bootstrap progress (first boot only):
@@ -182,7 +182,7 @@ Check bootstrap progress (first boot only):
 ./scripts/windows-debug/run.sh "Get-Content C:\bootstrap.log"
 ```
 
-The repo lives at `C:\agent-browser` on the instance. Rust, Git, and Chrome are pre-installed. The `run.sh` wrapper automatically adds cargo and git to PATH.
+The repo lives at `C:\acbrowser` on the instance. Rust, Git, and Chrome are pre-installed. The `run.sh` wrapper automatically adds cargo and git to PATH.
 
 <!-- opensrc:start -->
 

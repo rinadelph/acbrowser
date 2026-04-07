@@ -716,9 +716,9 @@ pub fn dispatch_state_command(cmd: &Value) -> Option<Result<Value, String>> {
 
 pub fn get_sessions_dir() -> PathBuf {
     if let Some(home) = dirs::home_dir() {
-        home.join(".agent-browser").join("sessions")
+        home.join(".acbrowser").join("sessions")
     } else {
-        std::env::temp_dir().join("agent-browser").join("sessions")
+        std::env::temp_dir().join("acbrowser").join("sessions")
     }
 }
 
@@ -773,19 +773,19 @@ mod tests {
 
     #[test]
     fn test_state_show_nonexistent_file() {
-        let result = state_show("/tmp/nonexistent-agent-browser-state-file.json");
+        let result = state_show("/tmp/nonexistent-acbrowser-state-file.json");
         assert!(result.is_err());
     }
 
     #[test]
     fn test_state_clear_nonexistent_file() {
-        let result = state_clear(Some("/tmp/nonexistent-agent-browser-state-file.json"));
+        let result = state_clear(Some("/tmp/nonexistent-acbrowser-state-file.json"));
         assert!(result.is_err());
     }
 
     #[test]
     fn test_state_rename_nonexistent() {
-        let result = state_rename("/tmp/nonexistent-agent-browser-state-file.json", "new-name");
+        let result = state_rename("/tmp/nonexistent-acbrowser-state-file.json", "new-name");
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("not found"));
     }

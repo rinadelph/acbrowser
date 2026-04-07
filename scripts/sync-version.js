@@ -59,7 +59,7 @@ if (dashboardPkg.version !== version) {
 // Update Cargo.lock to match Cargo.toml
 if (cargoTomlUpdated) {
   try {
-    execSync("cargo update -p agent-browser --offline", {
+    execSync("cargo update -p acbrowser --offline", {
       cwd: cliDir,
       stdio: "pipe",
     });
@@ -67,7 +67,7 @@ if (cargoTomlUpdated) {
   } catch {
     // --offline may fail if package not in cache, try without it
     try {
-      execSync("cargo update -p agent-browser", {
+      execSync("cargo update -p acbrowser", {
         cwd: cliDir,
         stdio: "pipe",
       });

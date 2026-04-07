@@ -196,7 +196,7 @@ fn build_chrome_args(options: &LaunchOptions) -> Result<ChromeArgs, String> {
         (dir, None)
     } else {
         let dir =
-            std::env::temp_dir().join(format!("agent-browser-chrome-{}", uuid::Uuid::new_v4()));
+            std::env::temp_dir().join(format!("acbrowser-chrome-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir)
             .map_err(|e| format!("Failed to create temp profile dir: {}", e))?;
         args.push(format!("--user-data-dir={}", dir.display()));
@@ -254,11 +254,11 @@ pub fn launch_chrome(options: &LaunchOptions) -> Result<ChromeProcess, String> {
             let cache_dir = crate::install::get_browsers_dir();
             format!(
                 "Chrome not found. Checked:\n  \
-                 - agent-browser cache: {}\n  \
+                 - acbrowser cache: {}\n  \
                  - System Chrome installations\n  \
                  - Puppeteer browser cache\n  \
                  - Playwright browser cache\n\
-                 Run `agent-browser install` to download Chrome, or use --executable-path.",
+                 Run `acbrowser install` to download Chrome, or use --executable-path.",
                 cache_dir.display()
             )
         })?,
@@ -544,7 +544,7 @@ fn chrome_launch_error(message: &str, stderr_lines: &[String]) -> String {
 }
 
 pub fn find_chrome() -> Option<PathBuf> {
-    // 1. Check Chrome downloaded by `agent-browser install`
+    // 1. Check Chrome downloaded by `acbrowser install`
     if let Some(p) = crate::install::find_installed_chrome() {
         return Some(p);
     }
@@ -556,7 +556,7 @@ pub fn find_chrome() -> Option<PathBuf> {
         let _ = writeln!(
             std::io::stderr(),
             "Warning: Chrome cache directory exists ({}) but no Chrome binary found inside. \
-             Falling back to system Chrome. Run `agent-browser install` to re-download.",
+             Falling back to system Chrome. Run `acbrowser install` to re-download.",
             cache_dir.display()
         );
     }
@@ -894,7 +894,7 @@ pub fn copy_chrome_profile(
     profile_directory: &str,
 ) -> Result<PathBuf, String> {
     let temp_dir =
-        std::env::temp_dir().join(format!("agent-browser-profile-{}", uuid::Uuid::new_v4()));
+        std::env::temp_dir().join(format!("acbrowser-profile-{}", uuid::Uuid::new_v4()));
     std::fs::create_dir_all(&temp_dir)
         .map_err(|e| format!("Failed to create temp profile dir: {}", e))?;
 
@@ -1297,7 +1297,7 @@ mod tests {
         guard.set("PLAYWRIGHT_BROWSERS_PATH", "/nonexistent/path");
 
         let temp_home = std::env::temp_dir().join(format!(
-            "agent-browser-test-home-{}-{}",
+            "acbrowser-test-home-{}-{}",
             std::process::id(),
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -1501,7 +1501,7 @@ mod tests {
     #[test]
     fn test_chrome_process_drop_cleans_temp_dir() {
         let dir = std::env::temp_dir().join(format!(
-            "agent-browser-chrome-drop-test-{}",
+            "acbrowser-chrome-drop-test-{}",
             uuid::Uuid::new_v4()
         ));
         let _ = std::fs::create_dir_all(&dir);
@@ -1572,7 +1572,7 @@ mod tests {
     impl TempDir {
         fn new(name: &str) -> Self {
             Self(std::env::temp_dir().join(format!(
-                "agent-browser-test-{}-{}-{}",
+                "acbrowser-test-{}-{}-{}",
                 name,
                 std::process::id(),
                 std::time::SystemTime::now()

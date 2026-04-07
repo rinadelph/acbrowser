@@ -260,7 +260,7 @@ async fn collect_annotations(
                 "DOM.resolveNode",
                 Some(serde_json::json!({
                     "backendNodeId": backend_node_id,
-                    "objectGroup": "agent-browser-annotate"
+                    "objectGroup": "acbrowser-annotate"
                 })),
                 Some(session_id),
             )
@@ -589,10 +589,10 @@ fn round(value: f64) -> i64 {
 
 fn get_screenshot_dir() -> PathBuf {
     if let Some(home) = dirs::home_dir() {
-        home.join(".agent-browser").join("tmp").join("screenshots")
+        home.join(".acbrowser").join("tmp").join("screenshots")
     } else {
         std::env::temp_dir()
-            .join("agent-browser")
+            .join("acbrowser")
             .join("screenshots")
     }
 }

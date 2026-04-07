@@ -4,8 +4,8 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "agent-browser Environments",
-  description: "Run agent-browser in different compute environments",
+  title: "acbrowser Environments",
+  description: "Run acbrowser in different compute environments",
 };
 
 export default function RootLayout({

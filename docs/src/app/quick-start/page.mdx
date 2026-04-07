@@ -6,32 +6,32 @@ Every browser automation follows this pattern:
 
 ```bash
 # 1. Navigate
-agent-browser open example.com
+acbrowser open example.com
 
 # 2. Snapshot to get element refs
-agent-browser snapshot -i
+acbrowser snapshot -i
 # Output:
 # @e1 [heading] "Example Domain"
 # @e2 [link] "More information..."
 
 # 3. Interact using refs
-agent-browser click @e2
+acbrowser click @e2
 
 # 4. Re-snapshot after page changes
-agent-browser snapshot -i
+acbrowser snapshot -i
 ```
 
 ## Common commands
 
 ```bash
-agent-browser open example.com
-agent-browser snapshot -i                # Get interactive elements with refs
-agent-browser click @e2                  # Click by ref
-agent-browser fill @e3 "test@example.com" # Fill input by ref
-agent-browser get text @e1               # Get text content
-agent-browser screenshot                 # Save to temp directory
-agent-browser screenshot page.png        # Save to specific path
-agent-browser close
+acbrowser open example.com
+acbrowser snapshot -i                # Get interactive elements with refs
+acbrowser click @e2                  # Click by ref
+acbrowser fill @e3 "test@example.com" # Fill input by ref
+acbrowser get text @e1               # Get text content
+acbrowser screenshot                 # Save to temp directory
+acbrowser screenshot page.png        # Save to specific path
+acbrowser close
 ```
 
 ## Traditional selectors
@@ -39,9 +39,9 @@ agent-browser close
 CSS selectors and semantic locators also supported:
 
 ```bash
-agent-browser click "#submit"
-agent-browser fill "#email" "test@example.com"
-agent-browser find role button click --name "Submit"
+acbrowser click "#submit"
+acbrowser fill "#email" "test@example.com"
+acbrowser find role button click --name "Submit"
 ```
 
 ## Headed mode
@@ -49,16 +49,16 @@ agent-browser find role button click --name "Submit"
 Show browser window for debugging:
 
 ```bash
-agent-browser open example.com --headed
+acbrowser open example.com --headed
 ```
 
 ## Wait for content
 
 ```bash
-agent-browser wait @e1                   # Wait for element
-agent-browser wait --load networkidle    # Wait for network idle
-agent-browser wait --url "**/dashboard"  # Wait for URL pattern
-agent-browser wait 2000                  # Wait milliseconds
+acbrowser wait @e1                   # Wait for element
+acbrowser wait --load networkidle    # Wait for network idle
+acbrowser wait --url "**/dashboard"  # Wait for URL pattern
+acbrowser wait 2000                  # Wait milliseconds
 ```
 
 ## Command chaining
@@ -67,13 +67,13 @@ Chain commands with `&&` in a single shell call. The browser persists via a back
 
 ```bash
 # Open, wait, and snapshot in one call
-agent-browser open example.com && agent-browser wait --load networkidle && agent-browser snapshot -i
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser snapshot -i
 
 # Chain multiple interactions
-agent-browser fill @e1 "user@example.com" && agent-browser fill @e2 "pass" && agent-browser click @e3
+acbrowser fill @e1 "user@example.com" && acbrowser fill @e2 "pass" && acbrowser click @e3
 
 # Navigate and capture
-agent-browser open example.com && agent-browser wait --load networkidle && agent-browser screenshot page.png
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser screenshot page.png
 ```
 
 Use `&&` when you don't need intermediate output. Run commands separately when you need to parse output first (e.g., snapshot to discover refs before interacting).
@@ -83,8 +83,8 @@ Use `&&` when you don't need intermediate output. Run commands separately when y
 For programmatic parsing in scripts:
 
 ```bash
-agent-browser snapshot --json
-agent-browser get text @e1 --json
+acbrowser snapshot --json
+acbrowser get text @e1 --json
 ```
 
 Note: The default text output is more compact and preferred for AI agents.

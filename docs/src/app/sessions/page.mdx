@@ -4,21 +4,21 @@ Run multiple isolated browser instances:
 
 ```bash
 # Different sessions
-agent-browser --session agent1 open site-a.com
-agent-browser --session agent2 open site-b.com
+acbrowser --session agent1 open site-a.com
+acbrowser --session agent2 open site-b.com
 
 # Or via environment variable
-AGENT_BROWSER_SESSION=agent1 agent-browser click "#btn"
+AGENT_BROWSER_SESSION=agent1 acbrowser click "#btn"
 
 # List active sessions
-agent-browser session list
+acbrowser session list
 # Output:
 # Active sessions:
 # -> default
 #    agent1
 
 # Show current session
-agent-browser session
+acbrowser session
 ```
 
 ## Session isolation
@@ -32,20 +32,20 @@ Each session has its own:
 
 ## Chrome profile reuse
 
-The simplest way to reuse your existing login state: pass a Chrome profile name to `--profile`. agent-browser copies the profile to a temp directory (read-only snapshot) and launches Chrome with your existing cookies and sessions.
+The simplest way to reuse your existing login state: pass a Chrome profile name to `--profile`. acbrowser copies the profile to a temp directory (read-only snapshot) and launches Chrome with your existing cookies and sessions.
 
 ```bash
 # List available Chrome profiles
-agent-browser profiles
+acbrowser profiles
 
 # Reuse your default Chrome profile's login state
-agent-browser --profile Default open https://gmail.com
+acbrowser --profile Default open https://gmail.com
 
 # Use a named profile (by display name or directory name)
-agent-browser --profile "Work" open https://app.example.com
+acbrowser --profile "Work" open https://app.example.com
 
 # Or via environment variable
-AGENT_BROWSER_PROFILE=Default agent-browser open https://gmail.com
+AGENT_BROWSER_PROFILE=Default acbrowser open https://gmail.com
 ```
 
 <table>
@@ -67,13 +67,13 @@ For a custom profile directory that persists state across browser restarts, pass
 
 ```bash
 # Use a persistent profile directory
-agent-browser --profile ~/.myapp-profile open myapp.com
+acbrowser --profile ~/.myapp-profile open myapp.com
 
 # Login once, then reuse the authenticated session
-agent-browser --profile ~/.myapp-profile open myapp.com/dashboard
+acbrowser --profile ~/.myapp-profile open myapp.com/dashboard
 
 # Or via environment variable
-AGENT_BROWSER_PROFILE=~/.myapp-profile agent-browser open myapp.com
+AGENT_BROWSER_PROFILE=~/.myapp-profile acbrowser open myapp.com
 ```
 
 The profile directory stores:
@@ -86,7 +86,7 @@ The profile directory stores:
 
 ## Import auth from your browser
 
-If you are already logged in to a site in Chrome, you can grab that auth state and reuse it in agent-browser. This is the fastest way to bypass login flows, OAuth, SSO, or 2FA.
+If you are already logged in to a site in Chrome, you can grab that auth state and reuse it in acbrowser. This is the fastest way to bypass login flows, OAuth, SSO, or 2FA.
 
 **Step 1:** Start Chrome with remote debugging:
 
@@ -105,24 +105,24 @@ Log in to your target site(s) in this Chrome window.
 **Step 2:** Connect and save the authenticated state:
 
 ```bash
-agent-browser --auto-connect state save ./my-auth.json
+acbrowser --auto-connect state save ./my-auth.json
 ```
 
 **Step 3:** Use the saved auth in future sessions:
 
 ```bash
 # Load auth at launch
-agent-browser --state ./my-auth.json open https://app.example.com/dashboard
+acbrowser --state ./my-auth.json open https://app.example.com/dashboard
 
 # Or load into an existing session
-agent-browser state load ./my-auth.json
-agent-browser open https://app.example.com/dashboard
+acbrowser state load ./my-auth.json
+acbrowser open https://app.example.com/dashboard
 ```
 
 Combine with `--session-name` so the imported auth auto-persists across restarts:
 
 ```bash
-agent-browser --session-name myapp state load ./my-auth.json
+acbrowser --session-name myapp state load ./my-auth.json
 # From now on, state auto-saves/restores for "myapp"
 ```
 
@@ -134,17 +134,17 @@ Use `--session-name` to automatically save and restore cookies and localStorage 
 
 ```bash
 # Auto-save/load state for "twitter" session
-agent-browser --session-name twitter open twitter.com
+acbrowser --session-name twitter open twitter.com
 
 # Login once, then state persists automatically
-agent-browser --session-name twitter click "#login"
+acbrowser --session-name twitter click "#login"
 
 # Or via environment variable
 export AGENT_BROWSER_SESSION_NAME=twitter
-agent-browser open twitter.com
+acbrowser open twitter.com
 ```
 
-State files are stored in `~/.agent-browser/sessions/` and automatically loaded on daemon start.
+State files are stored in `~/.acbrowser/sessions/` and automatically loaded on daemon start.
 
 ### Session name rules
 
@@ -152,13 +152,13 @@ Session names must contain only alphanumeric characters, hyphens, and underscore
 
 ```bash
 # Valid session names
-agent-browser --session-name my-project open example.com
-agent-browser --session-name test_session_v2 open example.com
+acbrowser --session-name my-project open example.com
+acbrowser --session-name test_session_v2 open example.com
 
 # Invalid (will be rejected)
-agent-browser --session-name "../bad" open example.com    # path traversal
-agent-browser --session-name "my session" open example.com # spaces
-agent-browser --session-name "foo/bar" open example.com    # slashes
+acbrowser --session-name "../bad" open example.com    # path traversal
+acbrowser --session-name "my session" open example.com # spaces
+acbrowser --session-name "foo/bar" open example.com    # slashes
 ```
 
 ## State encryption
@@ -173,10 +173,10 @@ openssl rand -hex 32
 export AGENT_BROWSER_ENCRYPTION_KEY=<your-64-char-hex-key>
 
 # State files are now encrypted automatically
-agent-browser --session-name secure-session open example.com
+acbrowser --session-name secure-session open example.com
 
 # List states shows encryption status
-agent-browser state list
+acbrowser state list
 ```
 
 ## State auto-expiration
@@ -188,30 +188,30 @@ Automatically delete old state files to prevent accumulation:
 export AGENT_BROWSER_STATE_EXPIRE_DAYS=7
 
 # Manually clean old states
-agent-browser state clean --older-than 7
+acbrowser state clean --older-than 7
 ```
 
 ## State management commands
 
 ```bash
 # List all saved states
-agent-browser state list
+acbrowser state list
 
 # Show state summary (cookies, origins, domains)
-agent-browser state show my-session-default.json
+acbrowser state show my-session-default.json
 
 # Rename a state file
-agent-browser state rename old-name new-name
+acbrowser state rename old-name new-name
 
 # Clear states for a specific session name
-agent-browser state clear my-session
+acbrowser state clear my-session
 
 # Clear all saved states
-agent-browser state clear --all
+acbrowser state clear --all
 
 # Manual save/load (for custom paths)
-agent-browser state save ./backup.json
-agent-browser state load ./backup.json
+acbrowser state save ./backup.json
+acbrowser state load ./backup.json
 ```
 
 ## Authenticated sessions
@@ -220,14 +220,14 @@ Use `--headers` to set HTTP headers for a specific origin:
 
 ```bash
 # Headers scoped to api.example.com only
-agent-browser open api.example.com --headers '{"Authorization": "Bearer <token>"}'
+acbrowser open api.example.com --headers '{"Authorization": "Bearer <token>"}'
 
 # Requests to api.example.com include the auth header
-agent-browser snapshot -i --json
-agent-browser click @e2
+acbrowser snapshot -i --json
+acbrowser click @e2
 
 # Navigate to another domain - headers NOT sent
-agent-browser open other-site.com
+acbrowser open other-site.com
 ```
 
 Useful for:
@@ -240,8 +240,8 @@ Useful for:
 ## Multiple origins
 
 ```bash
-agent-browser open api.example.com --headers '{"Authorization": "Bearer token1"}'
-agent-browser open api.acme.com --headers '{"Authorization": "Bearer token2"}'
+acbrowser open api.example.com --headers '{"Authorization": "Bearer token1"}'
+acbrowser open api.acme.com --headers '{"Authorization": "Bearer token2"}'
 ```
 
 ## Global headers
@@ -249,7 +249,7 @@ agent-browser open api.acme.com --headers '{"Authorization": "Bearer token2"}'
 For headers on all domains:
 
 ```bash
-agent-browser set headers '{"X-Custom-Header": "value"}'
+acbrowser set headers '{"X-Custom-Header": "value"}'
 ```
 
 ## Environment variables

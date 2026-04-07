@@ -48,12 +48,12 @@ impl ParseError {
             }
             ParseError::MissingArguments { context, usage } => {
                 format!(
-                    "Missing arguments for: {}\nUsage: agent-browser {}",
+                    "Missing arguments for: {}\nUsage: acbrowser {}",
                     context, usage
                 )
             }
             ParseError::InvalidValue { message, usage } => {
-                format!("{}\nUsage: agent-browser {}", message, usage)
+                format!("{}\nUsage: acbrowser {}", message, usage)
             }
             ParseError::InvalidSessionName { name } => session_name_error(name),
         }
@@ -633,7 +633,7 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
                 Some("save") => {
                     let name = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
                         context: "auth save".to_string(),
-                        usage: "agent-browser auth save <name> --url <url> --username <user> --password <pass>",
+                        usage: "acbrowser auth save <name> --url <url> --username <user> --password <pass>",
                     })?;
 
                     let mut url = None;
@@ -678,7 +678,7 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
                                 if other.starts_with("--") {
                                     return Err(ParseError::InvalidValue {
                                         message: format!("unknown flag '{}' for auth save", other),
-                                        usage: "agent-browser auth save <name> --url <url> --username <user> --password <pass>",
+                                        usage: "acbrowser auth save <name> --url <url> --username <user> --password <pass>",
                                     });
                                 }
                             }
@@ -688,17 +688,17 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
 
                     let url_val = url.ok_or_else(|| ParseError::MissingArguments {
                         context: "auth save".to_string(),
-                        usage: "agent-browser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
+                        usage: "acbrowser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
                     })?;
                     let user_val = username.ok_or_else(|| ParseError::MissingArguments {
                         context: "auth save".to_string(),
-                        usage: "agent-browser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
+                        usage: "acbrowser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
                     })?;
 
                     if !password_stdin && password.is_none() {
                         return Err(ParseError::MissingArguments {
                             context: "auth save".to_string(),
-                            usage: "agent-browser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
+                            usage: "acbrowser auth save <name> --url <url> --username <user> --password <pass> [--password-stdin]",
                         });
                     }
 
@@ -729,7 +729,7 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
                 Some("login") => {
                     let name = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
                         context: "auth login".to_string(),
-                        usage: "agent-browser auth login <name>",
+                        usage: "acbrowser auth login <name>",
                     })?;
                     Ok(json!({ "id": id, "action": "auth_login", "name": name }))
                 }
@@ -737,14 +737,14 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
                 Some("delete") | Some("remove") => {
                     let name = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
                         context: "auth delete".to_string(),
-                        usage: "agent-browser auth delete <name>",
+                        usage: "acbrowser auth delete <name>",
                     })?;
                     Ok(json!({ "id": id, "action": "auth_delete", "name": name }))
                 }
                 Some("show") => {
                     let name = rest.get(1).ok_or_else(|| ParseError::MissingArguments {
                         context: "auth show".to_string(),
-                        usage: "agent-browser auth show <name>",
+                        usage: "acbrowser auth show <name>",
                     })?;
                     Ok(json!({ "id": id, "action": "auth_show", "name": name }))
                 }
@@ -759,14 +759,14 @@ fn parse_command_inner(args: &[String], flags: &Flags) -> Result<Value, ParseErr
         "confirm" => {
             let cid = rest.first().ok_or_else(|| ParseError::MissingArguments {
                 context: "confirm".to_string(),
-                usage: "agent-browser confirm <confirmation-id>",
+                usage: "acbrowser confirm <confirmation-id>",
             })?;
             Ok(json!({ "id": id, "action": "confirm", "confirmationId": cid }))
         }
         "deny" => {
             let cid = rest.first().ok_or_else(|| ParseError::MissingArguments {
                 context: "deny".to_string(),
-                usage: "agent-browser deny <confirmation-id>",
+                usage: "acbrowser deny <confirmation-id>",
             })?;
             Ok(json!({ "id": id, "action": "deny", "confirmationId": cid }))
         }

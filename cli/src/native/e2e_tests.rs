@@ -203,7 +203,7 @@ async fn e2e_lightpanda_auto_launch_can_open_page() {
 async fn e2e_runtime_stream_enable_before_launch_attaches_and_disables() {
     let guard = EnvGuard::new(&["AGENT_BROWSER_SOCKET_DIR", "AGENT_BROWSER_SESSION"]);
     let socket_dir = std::env::temp_dir().join(format!(
-        "agent-browser-e2e-stream-{}-{}",
+        "acbrowser-e2e-stream-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -414,7 +414,7 @@ async fn e2e_screenshot() {
 
     // Named screenshot
     let tmp_path = std::env::temp_dir()
-        .join("agent-browser-e2e-test-screenshot.png")
+        .join("acbrowser-e2e-test-screenshot.png")
         .to_string_lossy()
         .to_string();
     let resp = execute_command(
@@ -1716,7 +1716,7 @@ async fn e2e_state_management() {
 
     // Save state
     let tmp_state = std::env::temp_dir()
-        .join("agent-browser-e2e-state.json")
+        .join("acbrowser-e2e-state.json")
         .to_string_lossy()
         .to_string();
     let resp = execute_command(
@@ -1824,7 +1824,7 @@ async fn e2e_save_state_cross_domain() {
 
     // Save state (currently on example.com)
     let tmp_state = std::env::temp_dir()
-        .join("agent-browser-e2e-cross-domain-state.json")
+        .join("acbrowser-e2e-cross-domain-state.json")
         .to_string_lossy()
         .to_string();
     let resp = execute_command(
@@ -2224,7 +2224,7 @@ async fn e2e_error_handling() {
 #[ignore]
 async fn e2e_profile_cookie_persistence() {
     let profile_dir = std::env::temp_dir().join(format!(
-        "agent-browser-e2e-profile-{}",
+        "acbrowser-e2e-profile-{}",
         uuid::Uuid::new_v4()
     ));
 
@@ -3759,7 +3759,7 @@ async fn e2e_headers_case_insensitive_no_duplicates() {
 // Regression: externally opened tabs must appear in tab_list (#1037)
 //
 // When connected to Chrome (launched or via --cdp), a tab opened outside of
-// agent-browser (e.g. by the user or another CDP client) should be detected
+// acbrowser (e.g. by the user or another CDP client) should be detected
 // and listed. Previously, chrome://newtab/ was filtered by
 // is_internal_chrome_target, and Target.targetInfoChanged for untracked
 // targets was silently ignored.
@@ -3785,7 +3785,7 @@ async fn e2e_externally_opened_tab_detected() {
 
     // Simulate an external client opening a new tab via the browser-level CDP
     // session (no sessionId). This mirrors what happens when a user manually
-    // opens a tab while agent-browser is connected via --cdp.
+    // opens a tab while acbrowser is connected via --cdp.
     let browser = state.browser.as_ref().expect("browser should be launched");
     let _: Value = browser
         .client
@@ -3878,7 +3878,7 @@ async fn e2e_relaunch_on_options_change() {
             "id": "3",
             "action": "launch",
             "headless": true,
-            "userAgent": "agent-browser-test/1.0"
+            "userAgent": "acbrowser-test/1.0"
         }),
         &mut state,
     )
@@ -3902,7 +3902,7 @@ async fn e2e_relaunch_on_options_change() {
 async fn e2e_stream_frame_metadata_respects_custom_viewport() {
     let guard = EnvGuard::new(&["AGENT_BROWSER_SOCKET_DIR", "AGENT_BROWSER_SESSION"]);
     let socket_dir = std::env::temp_dir().join(format!(
-        "agent-browser-e2e-stream-viewport-{}-{}",
+        "acbrowser-e2e-stream-viewport-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

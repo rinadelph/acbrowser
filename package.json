@@ -1,7 +1,7 @@
 {
-  "name": "agent-browser",
+  "name": "acbrowser",
   "version": "0.25.3",
-  "description": "Browser automation CLI for AI agents",
+  "description": "AI-agent-friendly stealth browser CLI - acbrowser + CloakBrowser integration",
   "type": "module",
   "files": [
     "bin",
@@ -9,17 +9,18 @@
     "skills"
   ],
   "bin": {
-    "agent-browser": "./bin/agent-browser.js"
+    "ac": "./bin/ac.js",
+    "acbrowser": "./bin/ac.js"
   },
   "scripts": {
     "version:sync": "node scripts/sync-version.js",
     "version": "npm run version:sync && git add cli/Cargo.toml",
     "build:native": "npm run version:sync && cargo build --release --manifest-path cli/Cargo.toml && node scripts/copy-native.js",
     "build:linux": "npm run version:sync && docker compose -f docker/docker-compose.yml run --rm build-linux",
-    "build:macos": "npm run version:sync && (cargo build --release --manifest-path cli/Cargo.toml --target aarch64-apple-darwin & cargo build --release --manifest-path cli/Cargo.toml --target x86_64-apple-darwin & wait) && cp cli/target/aarch64-apple-darwin/release/agent-browser bin/agent-browser-darwin-arm64 && cp cli/target/x86_64-apple-darwin/release/agent-browser bin/agent-browser-darwin-x64",
+    "build:macos": "npm run version:sync && (cargo build --release --manifest-path cli/Cargo.toml --target aarch64-apple-darwin & cargo build --release --manifest-path cli/Cargo.toml --target x86_64-apple-darwin & wait) && cp cli/target/aarch64-apple-darwin/release/acbrowser bin/acbrowser-darwin-arm64 && cp cli/target/x86_64-apple-darwin/release/acbrowser bin/acbrowser-darwin-x64",
     "build:windows": "npm run version:sync && docker compose -f docker/docker-compose.yml run --rm build-windows",
     "build:all-platforms": "npm run version:sync && (npm run build:linux & npm run build:windows & wait) && npm run build:macos",
-    "build:docker": "docker build -t agent-browser-builder -f docker/Dockerfile.build .",
+    "build:docker": "docker build -t acbrowser-builder -f docker/Dockerfile.build .",
     "release": "npm run version:sync && npm run build:all-platforms && npm publish",
     "postinstall": "node scripts/postinstall.js",
     "build:dashboard": "cd packages/dashboard && pnpm build"
@@ -31,16 +32,18 @@
     "chrome",
     "cdp",
     "cli",
-    "agent"
+    "agent",
+    "stealth",
+    "cloak"
   ],
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/vercel-labs/agent-browser.git"
+    "url": "git+https://github.com/rinadelph/acbrowser.git"
   },
   "bugs": {
-    "url": "https://github.com/vercel-labs/agent-browser/issues"
+    "url": "https://github.com/rinadelph/acbrowser/issues"
   },
-  "homepage": "https://agent-browser.dev",
+  "homepage": "https://github.com/rinadelph/acbrowser",
   "devDependencies": {}
 }

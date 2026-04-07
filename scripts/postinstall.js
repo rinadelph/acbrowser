@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Postinstall script for agent-browser
+ * Postinstall script for acbrowser
  * 
  * Downloads the platform-specific native binary if not present.
  * On global installs, patches npm's bin entry to use the native binary directly:
@@ -35,7 +35,7 @@ function isMusl() {
 const osKey = platform() === 'linux' && isMusl() ? 'linux-musl' : platform();
 const platformKey = `${osKey}-${arch()}`;
 const ext = platform() === 'win32' ? '.exe' : '';
-const binaryName = `agent-browser-${platformKey}${ext}`;
+const binaryName = `acbrowser-${platformKey}${ext}`;
 const binaryPath = join(binDir, binaryName);
 
 // Package info
@@ -45,7 +45,7 @@ const packageJson = JSON.parse(
 const version = packageJson.version;
 
 // GitHub release URL
-const GITHUB_REPO = 'vercel-labs/agent-browser';
+const GITHUB_REPO = 'vercel-labs/acbrowser';
 const DOWNLOAD_URL = `https://github.com/${GITHUB_REPO}/releases/download/v${version}/${binaryName}`;
 
 async function downloadFile(url, dest) {
@@ -82,7 +82,7 @@ async function downloadFile(url, dest) {
 
 /**
  * Detect which package manager ran this postinstall and write a marker file
- * next to the binary so `agent-browser upgrade` can use the correct one
+ * next to the binary so `acbrowser upgrade` can use the correct one
  * without fragile path heuristics or slow subprocess probing.
  *
  * npm_config_user_agent is set by npm/pnpm/yarn/bun during lifecycle scripts,
@@ -193,7 +193,7 @@ function showInstallReminder() {
   if (systemChrome) {
     console.log('');
     console.log(`  ✓ System Chrome found: ${systemChrome}`);
-    console.log('    agent-browser will use it automatically.');
+    console.log('    acbrowser will use it automatically.');
     console.log('');
     return;
   }
@@ -202,12 +202,12 @@ function showInstallReminder() {
   console.log('  ⚠ No Chrome installation detected.');
   console.log('  If you plan to use a local browser, run:');
   console.log('');
-  console.log('    agent-browser install');
+  console.log('    acbrowser install');
   if (platform() === 'linux') {
     console.log('');
     console.log('  On Linux, include system dependencies with:');
     console.log('');
-    console.log('    agent-browser install --with-deps');
+    console.log('    acbrowser install --with-deps');
   }
   console.log('');
   console.log('  You can skip this if you use --cdp, --provider, --engine, or --executable-path.');
@@ -240,7 +240,7 @@ async function fixUnixSymlink() {
     return; // npm not available
   }
 
-  const symlinkPath = join(npmBinDir, 'agent-browser');
+  const symlinkPath = join(npmBinDir, 'acbrowser');
 
   // Check if symlink exists (indicates global install)
   try {
@@ -277,19 +277,19 @@ async function fixWindowsShims() {
     return;
   }
 
-  const cmdShim = join(npmBinDir, 'agent-browser.cmd');
-  const ps1Shim = join(npmBinDir, 'agent-browser.ps1');
+  const cmdShim = join(npmBinDir, 'acbrowser.cmd');
+  const ps1Shim = join(npmBinDir, 'acbrowser.ps1');
 
   // Shims may not exist yet during postinstall (npm creates them after
   // lifecycle scripts). If missing, fall back: the JS wrapper at
-  // bin/agent-browser.js handles Windows correctly via child_process.spawn.
+  // bin/acbrowser.js handles Windows correctly via child_process.spawn.
   if (!existsSync(cmdShim)) {
     return;
   }
 
   // Detect architecture so ARM64 Windows is handled correctly
   const cpuArch = arch() === 'arm64' ? 'arm64' : 'x64';
-  const relativeBinaryPath = `node_modules\\agent-browser\\bin\\agent-browser-win32-${cpuArch}.exe`;
+  const relativeBinaryPath = `node_modules\\acbrowser\\bin\\acbrowser-win32-${cpuArch}.exe`;
   const absoluteBinaryPath = join(npmBinDir, relativeBinaryPath);
 
   // Only rewrite shims if the native binary actually exists

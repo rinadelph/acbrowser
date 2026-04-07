@@ -1,14 +1,14 @@
-# agent-browser
+# acbrowser
 
 Browser automation CLI designed for AI agents. Compact text output minimizes context usage. 100% native Rust.
 
 ```bash
-npm install -g agent-browser      # all platforms
-brew install agent-browser        # macOS
-agent-browser install             # Download Chrome (first time)
+npm install -g acbrowser      # all platforms
+brew install acbrowser        # macOS
+acbrowser install             # Download Chrome (first time)
 
 # or try without installing
-npx agent-browser open example.com
+npx acbrowser open example.com
 ```
 
 ## Features
@@ -28,17 +28,17 @@ Claude Code, Cursor, GitHub Copilot, OpenAI Codex, Google Gemini, opencode, and 
 
 ```bash
 # Navigate and get snapshot
-agent-browser open example.com
-agent-browser snapshot -i
+acbrowser open example.com
+acbrowser snapshot -i
 
 # Output:
 # - heading "Example Domain" [ref=e1]
 # - link "More information..." [ref=e2]
 
 # Interact using refs
-agent-browser click @e2
-agent-browser screenshot page.png
-agent-browser close
+acbrowser click @e2
+acbrowser screenshot page.png
+acbrowser close
 ```
 
 ## Why refs?

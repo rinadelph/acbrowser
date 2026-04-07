@@ -236,7 +236,7 @@ pub async fn resolve_element_object_id(
                     &DomResolveNodeParams {
                         backend_node_id: Some(backend_node_id),
                         node_id: None,
-                        object_group: Some("agent-browser".to_string()),
+                        object_group: Some("acbrowser".to_string()),
                     },
                     Some(effective_session_id),
                 )
@@ -267,7 +267,7 @@ pub async fn resolve_element_object_id(
                 &DomResolveNodeParams {
                     backend_node_id: Some(fresh_id),
                     node_id: None,
-                    object_group: Some("agent-browser".to_string()),
+                    object_group: Some("acbrowser".to_string()),
                 },
                 Some(effective_session_id),
             )

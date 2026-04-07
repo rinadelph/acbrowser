@@ -1,10 +1,10 @@
-# agent-browser Environments
+# acbrowser Environments
 
-A demo of agent-browser running in a Vercel Sandbox. Pick a URL, take a screenshot or accessibility snapshot, and watch each command execute in real time.
+A demo of acbrowser running in a Vercel Sandbox. Pick a URL, take a screenshot or accessibility snapshot, and watch each command execute in real time.
 
 ## How It Works
 
-The app runs agent-browser + Chrome inside an ephemeral Vercel Sandbox microVM. A Linux VM spins up on demand, executes agent-browser commands, and shuts down. No binary size limits, no Chromium bundling complexity.
+The app runs acbrowser + Chrome inside an ephemeral Vercel Sandbox microVM. A Linux VM spins up on demand, executes acbrowser commands, and shuts down. No binary size limits, no Chromium bundling complexity.
 
 The UI streams progress via Server-Sent Events so you can see each step as it runs (sandbox creation, browser startup, navigation, screenshot/snapshot, cleanup).
 
@@ -20,7 +20,7 @@ For local development, set `VERCEL_TOKEN`, `VERCEL_TEAM_ID`, and `VERCEL_PROJECT
 
 ## Sandbox Snapshots
 
-Without optimization, each Sandbox run installs system dependencies + agent-browser + Chromium from scratch (~30s). A **sandbox snapshot** is a saved VM image with everything pre-installed -- the sandbox boots from the image instead of installing, bringing startup down to sub-second. (This is unrelated to agent-browser's *accessibility snapshot* feature, which dumps a page's accessibility tree.)
+Without optimization, each Sandbox run installs system dependencies + acbrowser + Chromium from scratch (~30s). A **sandbox snapshot** is a saved VM image with everything pre-installed -- the sandbox boots from the image instead of installing, bringing startup down to sub-second. (This is unrelated to acbrowser's *accessibility snapshot* feature, which dumps a page's accessibility tree.)
 
 Create a sandbox snapshot by running the helper script once:
 
@@ -53,7 +53,7 @@ examples/environments/
     actions/browse.ts         # Server action (env status check)
     api/browse/route.ts       # Streaming SSE endpoint
   lib/
-    agent-browser-sandbox.ts  # Vercel Sandbox client with progress callbacks
+    acbrowser-sandbox.ts  # Vercel Sandbox client with progress callbacks
     constants.ts              # Allowed URLs
     rate-limit.ts             # Upstash rate limiting
   scripts/

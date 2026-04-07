@@ -1,18 +1,18 @@
 # Configuration
 
-Create an `agent-browser.json` file to set persistent defaults instead of repeating flags on every command.
+Create an `acbrowser.json` file to set persistent defaults instead of repeating flags on every command.
 
 ## Config File Locations
 
-agent-browser checks two locations, merged in priority order:
+acbrowser checks two locations, merged in priority order:
 
 <table>
   <thead>
     <tr><th>Priority</th><th>Location</th><th>Scope</th></tr>
   </thead>
   <tbody>
-    <tr><td>1 (lowest)</td><td><code>~/.agent-browser/config.json</code></td><td>User-level defaults</td></tr>
-    <tr><td>2</td><td><code>./agent-browser.json</code></td><td>Project-level overrides</td></tr>
+    <tr><td>1 (lowest)</td><td><code>~/.acbrowser/config.json</code></td><td>User-level defaults</td></tr>
+    <tr><td>2</td><td><code>./acbrowser.json</code></td><td>Project-level overrides</td></tr>
     <tr><td>3</td><td><code>AGENT_BROWSER_*</code> env vars</td><td>Override config values</td></tr>
     <tr><td>4 (highest)</td><td>CLI flags</td><td>Override everything</td></tr>
   </tbody>
@@ -23,8 +23,8 @@ Project-level values override user-level values. Environment variables override 
 Use `--config <path>` or the `AGENT_BROWSER_CONFIG` environment variable to load a specific config file instead of the default locations:
 
 ```bash
-agent-browser --config ./ci-config.json open example.com
-AGENT_BROWSER_CONFIG=./ci-config.json agent-browser open example.com
+acbrowser --config ./ci-config.json open example.com
+AGENT_BROWSER_CONFIG=./ci-config.json acbrowser open example.com
 ```
 
 ## Example Config
@@ -137,21 +137,21 @@ Every CLI flag can be set in the config file using its camelCase equivalent:
 Boolean flags accept an optional `true`/`false` value to override config settings:
 
 ```bash
-agent-browser --headed false open example.com
+acbrowser --headed false open example.com
 ```
 
 A bare flag is equivalent to passing `true`:
 
 ```bash
-agent-browser --headed open example.com       # same as --headed true
-agent-browser --headed true open example.com  # explicit
+acbrowser --headed open example.com       # same as --headed true
+acbrowser --headed true open example.com  # explicit
 ```
 
 This applies to all boolean flags: `--headed`, `--debug`, `--json`, `--ignore-https-errors`, `--allow-file-access`, `--auto-connect`, `--content-boundaries`, `--confirm-interactive`.
 
 ## Extensions Merging
 
-Extensions from user-level and project-level configs are **concatenated**, not replaced. For example, if `~/.agent-browser/config.json` specifies `["/ext1"]` and `./agent-browser.json` specifies `["/ext2"]`, the result is `["/ext1", "/ext2"]`.
+Extensions from user-level and project-level configs are **concatenated**, not replaced. For example, if `~/.acbrowser/config.json` specifies `["/ext1"]` and `./acbrowser.json` specifies `["/ext2"]`, the result is `["/ext1", "/ext2"]`.
 
 The `AGENT_BROWSER_EXTENSIONS` environment variable and CLI `--extension` flags follow the standard priority rules (env replaces config, CLI appends).
 
@@ -195,9 +195,9 @@ These environment variables configure additional daemon and runtime behavior:
 
 ## Error Handling
 
-- **Auto-discovered config files** (`~/.agent-browser/config.json`, `./agent-browser.json`) that are missing are silently ignored.
+- **Auto-discovered config files** (`~/.acbrowser/config.json`, `./acbrowser.json`) that are missing are silently ignored.
 - **`--config <path>`** with a missing or malformed file exits with an error.
 - **Malformed JSON** in auto-discovered files prints a warning to stderr and continues without that file.
 - **Unknown keys** are silently ignored for forward compatibility.
 
-> **Tip:** If your project-level `agent-browser.json` contains environment-specific values (paths, proxies), consider adding it to `.gitignore`.
+> **Tip:** If your project-level `acbrowser.json` contains environment-specific values (paths, proxies), consider adding it to `.gitignore`.

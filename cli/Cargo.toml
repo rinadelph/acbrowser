@@ -1,13 +1,13 @@
 [package]
-name = "agent-browser"
+name = "acbrowser"
 version = "0.25.3"
 edition = "2021"
-description = "Fast browser automation CLI for AI agents"
+description = "AI-agent-friendly stealth browser CLI - agent-browser + CloakBrowser integration"
 license = "Apache-2.0"
-repository = "https://github.com/vercel-labs/agent-browser"
-homepage = "https://agent-browser.dev"
+repository = "https://github.com/rinadelph/acbrowser"
+homepage = "https://github.com/rinadelph/acbrowser"
 readme = "../README.md"
-keywords = ["browser", "automation", "ai", "cdp", "chrome"]
+keywords = ["browser", "automation", "ai", "cdp", "chrome", "stealth", "cloak"]
 categories = ["command-line-utilities", "web-programming"]
 
 [dependencies]

@@ -1,5 +1,5 @@
 /**
- * Create a Vercel Sandbox snapshot with agent-browser + Chromium pre-installed.
+ * Create a Vercel Sandbox snapshot with acbrowser + Chromium pre-installed.
  *
  * Run once:   npx tsx scripts/create-snapshot.ts
  * Then set:   AGENT_BROWSER_SNAPSHOT_ID=<output id>
@@ -12,7 +12,7 @@
  */
 
 import "dotenv/config";
-import { createSnapshot, getSandboxCredentials } from "../lib/agent-browser-sandbox";
+import { createSnapshot, getSandboxCredentials } from "../lib/acbrowser-sandbox";
 
 const hasExplicitCreds = !!(
   process.env.VERCEL_TOKEN &&
@@ -38,7 +38,7 @@ console.log(
 );
 
 async function main() {
-  console.log("Creating Vercel Sandbox with agent-browser + Chromium...");
+  console.log("Creating Vercel Sandbox with acbrowser + Chromium...");
   console.log("This takes ~30-60 seconds on first run.\n");
 
   const snapshotId = await createSnapshot();

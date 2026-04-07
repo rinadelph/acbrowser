@@ -9,8 +9,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 
 export const metadata: Metadata = {
-  title: "agent-browser",
-  description: "Observability dashboard for agent-browser",
+  title: "acbrowser",
+  description: "Observability dashboard for acbrowser",
 };
 
 export default function RootLayout({

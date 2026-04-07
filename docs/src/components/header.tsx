@@ -48,14 +48,14 @@ export function Header() {
               className="font-medium tracking-tight text-lg"
               style={{ fontFamily: "var(--font-geist-pixel-square)" }}
             >
-              agent-browser
+              acbrowser
             </span>
           </Link>
         </div>
         <nav className="flex items-center gap-4">
           <Search />
           <a
-            href="https://github.com/vercel-labs/agent-browser"
+            href="https://github.com/vercel-labs/acbrowser"
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-1.5 text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"
@@ -71,7 +71,7 @@ export function Header() {
             <span>27k</span>
           </a>
           <a
-            href="https://www.npmjs.com/package/agent-browser"
+            href="https://www.npmjs.com/package/acbrowser"
             target="_blank"
             rel="noopener noreferrer"
             className="text-sm text-neutral-500 hover:text-neutral-900 transition-colors dark:text-neutral-400 dark:hover:text-neutral-100"

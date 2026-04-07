@@ -903,7 +903,7 @@ fn main() {
 
         if !ignored_flags.is_empty() && !flags.json {
             eprintln!(
-                "{} {} ignored: daemon already running. Use 'agent-browser close' first to restart with new options.",
+                "{} {} ignored: daemon already running. Use 'acbrowser close' first to restart with new options.",
                 color::warning_indicator(),
                 ignored_flags.join(", ")
             );
@@ -1301,7 +1301,7 @@ fn main() {
                             .and_then(|v| v.as_str())
                             .unwrap_or("");
 
-                        eprintln!("[agent-browser] Action requires confirmation:");
+                        eprintln!("[acbrowser] Action requires confirmation:");
                         eprintln!("  {}: {}", category, desc);
                         eprint!("  Allow? [y/N]: ");
 

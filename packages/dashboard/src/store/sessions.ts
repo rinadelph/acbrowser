@@ -95,7 +95,7 @@ export const createSessionAtom = atom(
     } else {
       args.push("--engine", engine);
     }
-    args.push("open", "https://agent-browser.dev");
+    args.push("open", "https://acbrowser.dev");
     const result = await execCommand(args);
     if (!result.success) {
       set(pendingSessionsAtom, (prev) => prev.filter((p) => p.session !== name));

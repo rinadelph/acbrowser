@@ -1,10 +1,10 @@
 /**
- * Run agent-browser inside a Vercel Sandbox.
+ * Run acbrowser inside a Vercel Sandbox.
  *
  * No external server needed -- a Linux microVM spins up on demand,
- * runs agent-browser + headless Chrome, and shuts down when done.
+ * runs acbrowser + headless Chrome, and shuts down when done.
  *
- * For production, create a snapshot with agent-browser and Chromium
+ * For production, create a snapshot with acbrowser and Chromium
  * pre-installed so startup is sub-second instead of ~30s.
  */
 
@@ -94,7 +94,7 @@ async function runStep<T>(
 }
 
 /**
- * Install system dependencies + agent-browser + Chromium into a fresh sandbox.
+ * Install system dependencies + acbrowser + Chromium into a fresh sandbox.
  * The sandbox base image is Amazon Linux (dnf).
  */
 async function bootstrapSandbox(
@@ -108,9 +108,9 @@ async function bootstrapSandbox(
     ]);
   }, onStep);
 
-  await runStep("Installing agent-browser", async () => {
-    await sandbox.runCommand("npm", ["install", "-g", "agent-browser"]);
-    await sandbox.runCommand("npx", ["agent-browser", "install"]);
+  await runStep("Installing acbrowser", async () => {
+    await sandbox.runCommand("npm", ["install", "-g", "acbrowser"]);
+    await sandbox.runCommand("npx", ["acbrowser", "install"]);
   }, onStep);
 }
 
@@ -167,7 +167,7 @@ async function exec(
 }
 
 /**
- * Screenshot a URL using agent-browser inside a Vercel Sandbox.
+ * Screenshot a URL using acbrowser inside a Vercel Sandbox.
  * Returns base64-encoded PNG.
  */
 export async function screenshotUrl(
@@ -178,12 +178,12 @@ export async function screenshotUrl(
   const sandbox = await createSandbox(onStep);
 
   try {
-    await exec(sandbox, "agent-browser", ["open", "about:blank"], onStep, "Starting browser");
-    await exec(sandbox, "agent-browser", ["open", url], onStep, `Navigating to ${url}`);
+    await exec(sandbox, "acbrowser", ["open", "about:blank"], onStep, "Starting browser");
+    await exec(sandbox, "acbrowser", ["open", url], onStep, `Navigating to ${url}`);
 
     const titleResult = await exec(
       sandbox,
-      "agent-browser",
+      "acbrowser",
       ["get", "title", "--json"],
       onStep,
       "Getting page title",
@@ -194,7 +194,7 @@ export async function screenshotUrl(
     if (opts.fullPage) screenshotArgs.push("--full");
     const ssResult = await exec(
       sandbox,
-      "agent-browser",
+      "acbrowser",
       screenshotArgs,
       onStep,
       "Taking screenshot",
@@ -221,7 +221,7 @@ export async function screenshotUrl(
       throw new Error("Failed to read screenshot file from sandbox");
     }
 
-    await exec(sandbox, "agent-browser", ["close"], onStep, "Closing browser");
+    await exec(sandbox, "acbrowser", ["close"], onStep, "Closing browser");
 
     return { screenshot, title };
   } finally {
@@ -230,7 +230,7 @@ export async function screenshotUrl(
 }
 
 /**
- * Snapshot a URL (accessibility tree) using agent-browser inside a Vercel Sandbox.
+ * Snapshot a URL (accessibility tree) using acbrowser inside a Vercel Sandbox.
  */
 export async function snapshotUrl(
   url: string,
@@ -240,12 +240,12 @@ export async function snapshotUrl(
   const sandbox = await createSandbox(onStep);
 
   try {
-    await exec(sandbox, "agent-browser", ["open", "about:blank"], onStep, "Starting browser");
-    await exec(sandbox, "agent-browser", ["open", url], onStep, `Navigating to ${url}`);
+    await exec(sandbox, "acbrowser", ["open", "about:blank"], onStep, "Starting browser");
+    await exec(sandbox, "acbrowser", ["open", url], onStep, `Navigating to ${url}`);
 
     const titleResult = await exec(
       sandbox,
-      "agent-browser",
+      "acbrowser",
       ["get", "title", "--json"],
       onStep,
       "Getting page title",
@@ -257,7 +257,7 @@ export async function snapshotUrl(
     if (opts.compact) snapshotArgs.push("-c");
     const snapResult = await exec(
       sandbox,
-      "agent-browser",
+      "acbrowser",
       snapshotArgs,
       onStep,
       "Taking accessibility snapshot",
@@ -267,7 +267,7 @@ export async function snapshotUrl(
       throw new Error("Snapshot returned empty data");
     }
 
-    await exec(sandbox, "agent-browser", ["close"], onStep, "Closing browser");
+    await exec(sandbox, "acbrowser", ["close"], onStep, "Closing browser");
 
     return { snapshot: snapResult.stdout, title };
   } finally {
@@ -276,7 +276,7 @@ export async function snapshotUrl(
 }
 
 /**
- * Run arbitrary agent-browser commands inside a Vercel Sandbox.
+ * Run arbitrary acbrowser commands inside a Vercel Sandbox.
  * Each command is a string array like ["open", "https://example.com"].
  */
 export async function runCommands(
@@ -287,7 +287,7 @@ export async function runCommands(
   try {
     const results: SandboxResult[] = [];
     for (const args of commands) {
-      const result = await exec(sandbox, "agent-browser", args);
+      const result = await exec(sandbox, "acbrowser", args);
       results.push(result);
     }
     return results;
@@ -297,7 +297,7 @@ export async function runCommands(
 }
 
 /**
- * Create a reusable snapshot with agent-browser + Chromium pre-installed.
+ * Create a reusable snapshot with acbrowser + Chromium pre-installed.
  * Run this once, then set AGENT_BROWSER_SNAPSHOT_ID for fast startup.
  */
 export async function createSnapshot(): Promise<string> {

@@ -1,4 +1,4 @@
-# agent-browser
+# acbrowser
 
 ## 0.25.3
 
@@ -32,7 +32,7 @@
 
 ### Improvements
 
-- **Embedded dashboard** - The observability dashboard is now bundled directly into the CLI binary using `rust-embed`, eliminating the need for `dashboard install`. The dashboard is available immediately after installing agent-browser (#1169)
+- **Embedded dashboard** - The observability dashboard is now bundled directly into the CLI binary using `rust-embed`, eliminating the need for `dashboard install`. The dashboard is available immediately after installing acbrowser (#1169)
 
 ### Contributors
 
@@ -42,7 +42,7 @@
 
 ### New Features
 
-- **AI chat command** - Added `chat` command for AI-powered browser automation. Supports single-shot mode (`chat "open google.com"`) and an interactive REPL. The AI agent can execute any agent-browser command via tool calls. Requires `AI_GATEWAY_API_KEY`. Configure the model with `--model` or `AI_GATEWAY_MODEL` (#1160, #1163)
+- **AI chat command** - Added `chat` command for AI-powered browser automation. Supports single-shot mode (`chat "open google.com"`) and an interactive REPL. The AI agent can execute any acbrowser command via tool calls. Requires `AI_GATEWAY_API_KEY`. Configure the model with `--model` or `AI_GATEWAY_MODEL` (#1160, #1163)
 - **Dashboard AI chat** - The observability dashboard now includes a built-in AI chat interface for conversational browser control alongside live session views (#1160, #1163)
 - **`snapshot --urls`** - New `-u`/`--urls` flag to include href URLs for link elements in snapshot output, giving agents direct access to link targets without additional queries (#1160)
 - **Batch argument mode** - The `batch` command now accepts commands as inline arguments in addition to reading from stdin, simplifying single-invocation multi-command workflows (#1160)
@@ -145,7 +145,7 @@
 - fbcab37: ### New Features
 
   - **Auto-dismissal for alert and beforeunload dialogs** - JavaScript `alert()` and `beforeunload` dialogs are now automatically accepted to prevent the agent from blocking indefinitely. `confirm` and `prompt` dialogs still require explicit `dialog accept/dismiss` commands. Disable with `--no-auto-dialog` flag or `AGENT_BROWSER_NO_AUTO_DIALOG` environment variable (#1075)
-  - **Puppeteer browser cache fallback** - Chrome discovery now searches `~/.cache/puppeteer/chrome/` (or `PUPPETEER_CACHE_DIR`) for Chrome binaries, so users with an existing Puppeteer installation can use agent-browser without a separate install step (#1088)
+  - **Puppeteer browser cache fallback** - Chrome discovery now searches `~/.cache/puppeteer/chrome/` (or `PUPPETEER_CACHE_DIR`) for Chrome binaries, so users with an existing Puppeteer installation can use acbrowser without a separate install step (#1088)
   - **Console output improvements** - `console.log` of objects now shows the actual object preview (e.g. `{userId: "abc", count: 42}`) instead of `"Object"`. JSON output includes a raw `args` array for programmatic access (#1040)
 
   ### Bug Fixes
@@ -253,7 +253,7 @@
 
 - aed466b: ### Bug Fixes
 
-  - **Auth login readiness** - `agent-browser auth login` now navigates with `load`, waits for usable login form selectors, and uses staged username detection (targeted email/username selectors first, then broad text-input fallback). This reduces SPA timing failures, avoids false matches on unrelated text fields, and prevents `networkidle` hangs on pages with continuous background requests.
+  - **Auth login readiness** - `acbrowser auth login` now navigates with `load`, waits for usable login form selectors, and uses staged username detection (targeted email/username selectors first, then broad text-input fallback). This reduces SPA timing failures, avoids false matches on unrelated text fields, and prevents `networkidle` hangs on pages with continuous background requests.
 
 ## 0.21.3
 
@@ -294,12 +294,12 @@
 - 1e7619d: ### New Features
 
   - **HAR 1.2 network capture** - Added commands to capture and export network traffic in HAR 1.2 format, including accurate request/response timing, headers, body sizes, and resource types sourced from Chrome DevTools Protocol events (#864)
-  - **Built-in `upgrade` command** - Added `agent-browser upgrade` to self-update the CLI; automatically detects your installation method (npm, Homebrew, or Cargo) and runs the appropriate update command (#898)
+  - **Built-in `upgrade` command** - Added `acbrowser upgrade` to self-update the CLI; automatically detects your installation method (npm, Homebrew, or Cargo) and runs the appropriate update command (#898)
 
   ### Documentation
 
   - Added `upgrade` command to the README command reference and installation guide
-  - Added a dedicated **Updating** section to the README with usage instructions for `agent-browser upgrade`
+  - Added a dedicated **Updating** section to the README with usage instructions for `acbrowser upgrade`
 
 ## 0.21.0
 
@@ -398,7 +398,7 @@
 
   ### Documentation
 
-  - Updated README to replace outdated **`BrowserManager` programmatic API** examples with the current CLI-based approach using `execSync` and `agent-browser` commands (#821)
+  - Updated README to replace outdated **`BrowserManager` programmatic API** examples with the current CLI-based approach using `execSync` and `acbrowser` commands (#821)
   - Removed the **Programmatic API** section covering `BrowserManager` screencast and input injection methods, which are no longer part of the public API (#821)
 
 ## 0.20.7
@@ -654,7 +654,7 @@
 
 ### Patch Changes
 
-- c6fc7df: Added documentation for command chaining with && across README, CLI help output, docs, and skill files, explaining how to efficiently chain multiple agent-browser commands in a single shell invocation since the browser persists via a background daemon.
+- c6fc7df: Added documentation for command chaining with && across README, CLI help output, docs, and skill files, explaining how to efficiently chain multiple acbrowser commands in a single shell invocation since the browser persists via a background daemon.
 
 ## 0.11.0
 
@@ -834,7 +834,7 @@
 
   - Screenshot command now supports refs and has improved error messages
   - WebSocket URLs work in `connect` command
-  - Fixed socket file location (uses `~/.agent-browser` instead of TMPDIR)
+  - Fixed socket file location (uses `~/.acbrowser` instead of TMPDIR)
   - Windows binary path fix (.exe extension)
   - State load and path-based actions now show correct output messages
 
