@@ -1,0 +1,54 @@
+# Selectors
+
+## Refs (recommended)
+
+Refs provide deterministic element selection from snapshots. Best for AI agents.
+
+```bash
+# 1. Get snapshot with refs
+acbrowser snapshot
+# Output:
+# - heading "Example Domain" [ref=e1] [level=1]
+# - button "Submit" [ref=e2]
+# - textbox "Email" [ref=e3]
+# - link "Learn more" [ref=e4]
+
+# 2. Use refs to interact
+acbrowser click @e2                   # Click the button
+acbrowser fill @e3 "test@example.com" # Fill the textbox
+acbrowser get text @e1                # Get heading text
+acbrowser hover @e4                   # Hover the link
+```
+
+### Why refs?
+
+- **Deterministic** - Ref points to exact element from snapshot
+- **Fast** - No DOM re-query needed
+- **AI-friendly** - LLMs can reliably parse and use refs
+
+## CSS selectors
+
+```bash
+acbrowser click "#id"
+acbrowser click ".class"
+acbrowser click "div > button"
+acbrowser click "[data-testid='submit']"
+```
+
+## Text & XPath
+
+```bash
+acbrowser click "text=Submit"
+acbrowser click "xpath=//button[@type='submit']"
+```
+
+## Semantic locators
+
+Find elements by role, label, or other semantic properties:
+
+```bash
+acbrowser find role button click --name "Submit"
+acbrowser find label "Email" fill "test@test.com"
+acbrowser find placeholder "Search..." fill "query"
+acbrowser find testid "submit-btn" click
+```

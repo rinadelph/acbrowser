@@ -1,0 +1,24 @@
+# Browserbase
+
+[Browserbase](https://browserbase.com) provides remote browser infrastructure to make deployment of agentic browsing agents easy. Use it when running acbrowser in environments where a local browser isn't feasible.
+
+## Setup
+
+```bash
+export BROWSERBASE_API_KEY="your-api-key"
+acbrowser -p browserbase open https://example.com
+```
+
+Or use environment variables for CI/scripts:
+
+```bash
+export AGENT_BROWSER_PROVIDER=browserbase
+export BROWSERBASE_API_KEY="your-api-key"
+acbrowser open https://example.com
+```
+
+The `-p` flag takes precedence over `AGENT_BROWSER_PROVIDER`.
+
+When enabled, acbrowser connects to a Browserbase session instead of launching a local browser. All commands work identically.
+
+Get your API key from the [Browserbase Dashboard](https://browserbase.com/overview).

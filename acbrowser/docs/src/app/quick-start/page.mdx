@@ -1,0 +1,90 @@
+# Quick Start
+
+## Core workflow
+
+Every browser automation follows this pattern:
+
+```bash
+# 1. Navigate
+acbrowser open example.com
+
+# 2. Snapshot to get element refs
+acbrowser snapshot -i
+# Output:
+# @e1 [heading] "Example Domain"
+# @e2 [link] "More information..."
+
+# 3. Interact using refs
+acbrowser click @e2
+
+# 4. Re-snapshot after page changes
+acbrowser snapshot -i
+```
+
+## Common commands
+
+```bash
+acbrowser open example.com
+acbrowser snapshot -i                # Get interactive elements with refs
+acbrowser click @e2                  # Click by ref
+acbrowser fill @e3 "test@example.com" # Fill input by ref
+acbrowser get text @e1               # Get text content
+acbrowser screenshot                 # Save to temp directory
+acbrowser screenshot page.png        # Save to specific path
+acbrowser close
+```
+
+## Traditional selectors
+
+CSS selectors and semantic locators also supported:
+
+```bash
+acbrowser click "#submit"
+acbrowser fill "#email" "test@example.com"
+acbrowser find role button click --name "Submit"
+```
+
+## Headed mode
+
+Show browser window for debugging:
+
+```bash
+acbrowser open example.com --headed
+```
+
+## Wait for content
+
+```bash
+acbrowser wait @e1                   # Wait for element
+acbrowser wait --load networkidle    # Wait for network idle
+acbrowser wait --url "**/dashboard"  # Wait for URL pattern
+acbrowser wait 2000                  # Wait milliseconds
+```
+
+## Command chaining
+
+Chain commands with `&&` in a single shell call. The browser persists via a background daemon, so chaining is safe and efficient:
+
+```bash
+# Open, wait, and snapshot in one call
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser snapshot -i
+
+# Chain multiple interactions
+acbrowser fill @e1 "user@example.com" && acbrowser fill @e2 "pass" && acbrowser click @e3
+
+# Navigate and capture
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser screenshot page.png
+```
+
+Use `&&` when you don't need intermediate output. Run commands separately when you need to parse output first (e.g., snapshot to discover refs before interacting).
+
+## JSON output
+
+For programmatic parsing in scripts:
+
+```bash
+acbrowser snapshot --json
+acbrowser get text @e1 --json
+```
+
+Note: The default text output is more compact and preferred for AI agents.

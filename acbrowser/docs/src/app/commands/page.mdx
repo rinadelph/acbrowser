@@ -1,0 +1,471 @@
+# Commands
+
+## Core
+
+```bash
+acbrowser open <url>              # Navigate (aliases: goto, navigate)
+acbrowser click <sel>             # Click element (--new-tab to open in new tab)
+acbrowser dblclick <sel>          # Double-click
+acbrowser fill <sel> <text>       # Clear and fill
+acbrowser type <sel> <text>       # Type into element
+acbrowser press <key>             # Press key (Enter, Tab, Control+a) (alias: key)
+acbrowser keyboard type <text>    # Type at current focus (no selector needed)
+acbrowser keyboard inserttext <text>  # Insert text without key events
+acbrowser keydown <key>           # Hold key down
+acbrowser keyup <key>             # Release key
+acbrowser hover <sel>             # Hover element
+acbrowser focus <sel>             # Focus element
+acbrowser select <sel> <val>      # Select dropdown option
+acbrowser check <sel>             # Check checkbox
+acbrowser uncheck <sel>           # Uncheck checkbox
+acbrowser scroll <dir> [px]       # Scroll (up/down/left/right, --selector <sel>)
+acbrowser scrollintoview <sel>    # Scroll element into view
+acbrowser drag <src> <dst>        # Drag and drop
+acbrowser upload <sel> <files>    # Upload files
+acbrowser screenshot [path]       # Screenshot (--full for full page)
+acbrowser screenshot --annotate   # Annotated screenshot with numbered element labels
+acbrowser screenshot --screenshot-dir ./shots    # Save to custom directory
+acbrowser screenshot --screenshot-format jpeg --screenshot-quality 80
+acbrowser pdf <path>              # Save page as PDF
+acbrowser snapshot                # Accessibility tree with refs
+acbrowser eval <js>               # Run JavaScript
+acbrowser connect <port|url>      # Connect to browser via CDP
+acbrowser stream enable [--port <port>]  # Start runtime WebSocket streaming
+acbrowser stream status           # Show runtime streaming state and bound port
+acbrowser stream disable          # Stop runtime WebSocket streaming
+acbrowser close                   # Close browser (aliases: quit, exit)
+acbrowser close --all             # Close all active sessions
+```
+
+## Get info
+
+```bash
+acbrowser get text <sel>          # Get text content
+acbrowser get html <sel>          # Get innerHTML
+acbrowser get value <sel>         # Get input value
+acbrowser get attr <sel> <attr>   # Get attribute
+acbrowser get title               # Get page title
+acbrowser get url                 # Get current URL
+acbrowser get cdp-url             # Get CDP WebSocket URL
+acbrowser get count <sel>         # Count matching elements
+acbrowser get box <sel>           # Get bounding box
+acbrowser get styles <sel>        # Get computed styles
+```
+
+## Check state
+
+```bash
+acbrowser is visible <sel>        # Check if visible
+acbrowser is enabled <sel>        # Check if enabled
+acbrowser is checked <sel>        # Check if checked
+```
+
+## Find elements
+
+Semantic locators with actions (`click`, `fill`, `type`, `hover`, `focus`, `check`, `uncheck`, `text`):
+
+```bash
+acbrowser find role <role> <action> [value]
+acbrowser find text <text> <action>
+acbrowser find label <label> <action> [value]
+acbrowser find placeholder <ph> <action> [value]
+acbrowser find alt <text> <action>
+acbrowser find title <text> <action>
+acbrowser find testid <id> <action> [value]
+acbrowser find first <sel> <action> [value]
+acbrowser find last <sel> <action> [value]
+acbrowser find nth <n> <sel> <action> [value]
+```
+
+Options:
+
+- `--name <name>` -- filter role by accessible name
+- `--exact` -- require exact text match
+
+Examples:
+
+```bash
+acbrowser find role button click --name "Submit"
+acbrowser find label "Email" fill "test@test.com"
+acbrowser find alt "Logo" click
+acbrowser find first ".item" click
+acbrowser find last ".item" text
+acbrowser find nth 2 ".card" hover
+```
+
+## Wait
+
+```bash
+acbrowser wait <selector>         # Wait for element
+acbrowser wait <ms>               # Wait for time
+acbrowser wait --text "Welcome"   # Wait for text (substring match)
+acbrowser wait --url "**/dash"    # Wait for URL pattern
+acbrowser wait --load networkidle # Wait for load state
+acbrowser wait --fn "condition"   # Wait for JS condition
+acbrowser wait --download [path]  # Wait for download
+acbrowser wait --fn "!document.body.innerText.includes('Loading...')"  # Wait for text to disappear
+acbrowser wait "#spinner" --state hidden           # Wait for element to disappear
+```
+
+## Downloads
+
+```bash
+acbrowser download <sel> <path>   # Click element to trigger download
+acbrowser wait --download [path]  # Wait for any download to complete
+```
+
+Use `--download-path <dir>` (or `AGENT_BROWSER_DOWNLOAD_PATH` env) to set a default download directory. Without it, downloads go to a temporary directory that is deleted when the browser closes.
+
+## Mouse
+
+```bash
+acbrowser mouse move <x> <y>      # Move mouse
+acbrowser mouse down [button]     # Press button
+acbrowser mouse up [button]       # Release button
+acbrowser mouse wheel <dy> [dx]   # Scroll wheel
+```
+
+## Clipboard
+
+```bash
+acbrowser clipboard read                      # Read text from clipboard
+acbrowser clipboard write "Hello, World!"     # Write text to clipboard
+acbrowser clipboard copy                      # Copy current selection (Ctrl+C)
+acbrowser clipboard paste                     # Paste from clipboard (Ctrl+V)
+```
+
+## Settings
+
+```bash
+acbrowser set viewport <w> <h> [scale]  # Set viewport size (scale for retina, e.g. 2)
+acbrowser set device <name>       # Emulate device ("iPhone 14")
+acbrowser set geo <lat> <lng>     # Set geolocation
+acbrowser set offline [on|off]    # Toggle offline mode
+acbrowser set headers <json>      # Extra HTTP headers
+acbrowser set credentials <u> <p> # HTTP basic auth
+acbrowser set media [dark|light]  # Emulate color scheme (persists for session)
+```
+
+Use `--color-scheme` for persistent dark/light mode across all commands:
+
+```bash
+acbrowser --color-scheme dark open https://example.com
+```
+
+## Cookies & storage
+
+```bash
+acbrowser cookies                 # Get all cookies
+acbrowser cookies set <name> <val> # Set cookie
+acbrowser cookies clear           # Clear cookies
+
+acbrowser storage local           # Get all localStorage
+acbrowser storage local <key>     # Get specific key
+acbrowser storage local set <k> <v>  # Set value
+acbrowser storage local clear     # Clear all
+
+acbrowser storage session         # Same for sessionStorage
+```
+
+## Network
+
+```bash
+acbrowser network route <url>              # Intercept requests
+acbrowser network route <url> --abort      # Block requests
+acbrowser network route <url> --body <json>  # Mock response
+acbrowser network unroute [url]            # Remove routes
+acbrowser network requests                 # View tracked requests
+acbrowser network requests --clear         # Clear request log
+acbrowser network requests --filter <pat>  # Filter by URL pattern
+acbrowser network requests --type xhr,fetch  # Filter by resource type
+acbrowser network requests --method POST   # Filter by HTTP method
+acbrowser network requests --status 2xx    # Filter by status (200, 2xx, 400-499)
+acbrowser network request <requestId>      # View full request/response detail
+acbrowser network har start                # Start HAR recording
+acbrowser network har stop [output.har]    # Stop and save HAR (temp path if omitted)
+```
+
+## Tabs & frames
+
+```bash
+acbrowser tab                     # List tabs
+acbrowser tab new [url]           # New tab
+acbrowser tab <n>                 # Switch to tab
+acbrowser tab close [n]           # Close tab
+acbrowser window new              # Open new browser window
+acbrowser frame <sel>             # Switch to iframe by CSS selector
+acbrowser frame @e3               # Switch to iframe by element ref
+acbrowser frame main              # Back to main frame
+```
+
+### Iframe support
+
+Iframes are detected automatically during snapshots. `Iframe` nodes are resolved and their content is
+inlined beneath the iframe element in the snapshot output. Refs assigned to elements inside iframes carry
+frame context, so `click`, `fill`, and other interactions work without manually switching frames.
+
+```bash
+acbrowser snapshot -i
+# @e3 [Iframe] "payment-frame"
+#   @e4 [input] "Card number"
+#   @e5 [button] "Pay"
+
+# Interact directly using refs — no frame switch needed
+acbrowser fill @e4 "4111111111111111"
+acbrowser click @e5
+
+# Or switch frame context for scoped snapshots
+acbrowser frame @e3
+acbrowser snapshot -i             # Only elements inside that iframe
+acbrowser frame main              # Return to main frame
+```
+
+The `frame` command accepts element refs (`@e3`), CSS selectors (`"#my-iframe"`), or frame name/URL.
+
+## Dialogs
+
+```bash
+acbrowser dialog accept [text]    # Accept dialog (with optional prompt text)
+acbrowser dialog dismiss          # Dismiss dialog
+acbrowser dialog status           # Check if a dialog is currently open
+```
+
+By default, `alert` and `beforeunload` dialogs are automatically accepted so they never block the agent. `confirm` and `prompt` dialogs still require explicit handling. Use `--no-auto-dialog` (or `AGENT_BROWSER_NO_AUTO_DIALOG=1`) to disable automatic handling.
+
+When a JavaScript dialog (`alert`, `confirm`, `prompt`) is pending, all command responses include a `warning` field with the dialog type and message.
+
+## Streaming
+
+```bash
+acbrowser stream enable           # Start runtime WebSocket streaming on an auto-selected port
+acbrowser stream enable --port 9223  # Bind a specific localhost port
+acbrowser stream status           # Show enabled state, port, browser connection, screencasting
+acbrowser stream disable          # Stop runtime streaming and remove the .stream metadata file
+```
+
+Streaming is enabled automatically for all sessions. Use these commands to check status, re-enable on a specific port, or disable streaming.
+
+## Debug
+
+```bash
+acbrowser trace start [path]      # Start trace
+acbrowser trace stop [path]       # Stop and save trace
+acbrowser profiler start          # Start Chrome DevTools profiling
+acbrowser profiler stop [path]    # Stop and save profile (.json)
+acbrowser record start <path>     # Start video recording (WebM)
+acbrowser record stop             # Stop and save video
+acbrowser record restart <path>   # Stop current and start new recording
+acbrowser console                 # View console messages
+acbrowser console --json          # JSON output with raw CDP args
+acbrowser console --clear         # Clear console log
+acbrowser errors                  # View page errors
+acbrowser errors --clear          # Clear error log
+acbrowser highlight <sel>         # Highlight element
+acbrowser inspect                 # Open Chrome DevTools for the active page
+```
+
+## Auth vault
+
+```bash
+acbrowser auth save <name> [opts]    # Save auth profile
+acbrowser auth login <name>          # Login using saved credentials
+acbrowser auth list                  # List saved profiles (names and URLs only)
+acbrowser auth show <name>           # Show profile metadata (no passwords)
+acbrowser auth delete <name>         # Delete a saved profile
+```
+
+Save options:
+
+- `--url <url>` -- login page URL (required)
+- `--username <user>` -- username (required)
+- `--password <pass>` -- password (required unless `--password-stdin`)
+- `--password-stdin` -- read password from stdin (recommended to avoid shell history exposure)
+- `--username-selector <sel>` -- custom CSS selector for username field
+- `--password-selector <sel>` -- custom CSS selector for password field
+- `--submit-selector <sel>` -- custom CSS selector for submit button
+
+`auth login` navigates with `load` and then waits for the username/password/submit selectors to appear before interacting. This improves reliability on SPA login pages where fields render after initial page load.
+
+```bash
+echo "pass" | acbrowser auth save github --url https://github.com/login --username user --password-stdin
+acbrowser auth login github
+acbrowser auth list
+```
+
+## Confirmation
+
+When `--confirm-actions` is set, certain action categories return a `confirmation_required` response instead of executing immediately. Use `confirm` or `deny` to approve or reject the action.
+
+```bash
+acbrowser confirm <confirmation-id>  # Approve a pending action
+acbrowser deny <confirmation-id>     # Deny a pending action
+```
+
+Pending confirmations auto-deny after 60 seconds.
+
+```bash
+acbrowser --confirm-actions eval,download eval "document.title"
+# Returns confirmation_required with ID
+acbrowser confirm c_8f3a1234
+```
+
+## State management
+
+```bash
+acbrowser state save <path>       # Save auth state to file
+acbrowser state load <path>       # Load auth state from file
+acbrowser state list              # List saved state files
+acbrowser state show <file>       # Show state summary
+acbrowser state rename <old> <new> # Rename state file
+acbrowser state clear [name]      # Clear states for session name
+acbrowser state clear --all       # Clear all saved states
+acbrowser state clean --older-than <days>  # Delete old states
+```
+
+## Sessions
+
+```bash
+acbrowser session                 # Show current session name
+acbrowser session list            # List active sessions
+```
+
+## Chrome profiles
+
+```bash
+acbrowser profiles               # List available Chrome profiles
+acbrowser profiles --json        # List profiles as JSON
+acbrowser --profile Default open https://gmail.com  # Reuse a profile's login state
+```
+
+## Dashboard
+
+```bash
+acbrowser dashboard [start]       # Start the dashboard server (default port: 4848)
+acbrowser dashboard start --port <n>  # Start on a specific port
+acbrowser dashboard stop          # Stop the dashboard server
+```
+
+## Chat
+
+Use natural language to control the browser via AI. The `chat` command translates instructions into acbrowser commands, executes them, and streams the AI response. Requires `AI_GATEWAY_API_KEY` to be set.
+
+```bash
+acbrowser chat "open google.com and search for cats"     # Single-shot instruction
+acbrowser chat                                           # Interactive REPL (type quit to exit)
+echo "summarize this page" | acbrowser chat              # Piped input
+acbrowser -q chat "summarize this page"                  # Quiet: text only, no tool calls shown
+acbrowser -v chat "fill in the login form"               # Verbose: show commands and their output
+acbrowser --model openai/gpt-4o chat "take a screenshot" # Override the default AI model
+acbrowser --json chat "open example.com"                 # Structured JSON output
+```
+
+Chat-specific options:
+
+```bash
+--model <name>           # AI model (or AI_GATEWAY_MODEL env, default: anthropic/claude-sonnet-4.6)
+-v, --verbose            # Show tool commands and their raw output
+-q, --quiet              # Show only the AI text response (hide tool calls)
+```
+
+## Navigation
+
+```bash
+acbrowser back                    # Go back
+acbrowser forward                 # Go forward
+acbrowser reload                  # Reload page
+```
+
+## Global options
+
+```bash
+--session <name>         # Isolated browser session
+--session-name <name>    # Auto-save/restore session state (cookies, localStorage)
+--profile <path>         # Persistent browser profile directory
+--state <path>           # Load storage state from JSON file
+--headers <json>         # HTTP headers scoped to URL's origin
+--executable-path <path> # Custom browser executable
+--extension <path>       # Load browser extension (repeatable)
+--args <args>            # Browser launch args (comma separated)
+--user-agent <ua>        # Custom User-Agent string
+--proxy <url>            # Proxy server URL
+--proxy-bypass <hosts>   # Hosts to bypass proxy
+--ignore-https-errors    # Ignore HTTPS certificate errors
+--allow-file-access      # Allow file:// URLs to access local files (Chromium only)
+-p, --provider <name>    # Browser provider (ios, browserbase, kernel, browseruse, browserless)
+--device <name>          # iOS device name (e.g., "iPhone 15 Pro")
+--json                   # JSON output (for scripts)
+--annotate               # Annotated screenshot with numbered element labels
+--screenshot-dir <path>   # Default screenshot output directory (or AGENT_BROWSER_SCREENSHOT_DIR)
+--screenshot-quality <n>  # JPEG quality 0-100 (or AGENT_BROWSER_SCREENSHOT_QUALITY)
+--screenshot-format <fmt> # Format: png (default), jpeg (or AGENT_BROWSER_SCREENSHOT_FORMAT)
+--headed                 # Show browser window (not headless)
+--cdp <port|url>         # Connect via Chrome DevTools Protocol (port or WebSocket URL)
+--auto-connect           # Auto-discover and connect to running Chrome
+--color-scheme <scheme>  # Color scheme: dark, light, no-preference
+--download-path <path>   # Default download directory
+--content-boundaries     # Wrap page output in boundary markers for LLM safety
+--max-output <chars>     # Truncate page output to N characters
+--allowed-domains <list> # Comma-separated allowed domain patterns
+--action-policy <path>   # Path to action policy JSON file
+--confirm-actions <list> # Action categories requiring confirmation
+--confirm-interactive    # Interactive confirmation prompts (auto-denies if stdin is not a TTY)
+--model <name>           # AI model for chat (or AI_GATEWAY_MODEL env)
+-v, --verbose            # Show tool commands and their raw output (chat)
+-q, --quiet              # Show only AI text responses (chat)
+--config <path>          # Use a custom config file
+--debug                  # Debug output
+```
+
+## Batch execution
+
+Execute multiple commands in a single invocation. Commands can be passed as quoted arguments or piped as JSON via stdin.
+
+```bash
+# Argument mode: each quoted argument is a full command
+acbrowser batch "open https://example.com" "snapshot -i" "screenshot"
+
+# With --bail to stop on first error
+acbrowser batch --bail "open https://example.com" "click @e1" "screenshot"
+
+# Stdin mode: pipe commands as JSON
+echo '[
+  ["open", "https://example.com"],
+  ["snapshot", "-i"],
+  ["click", "@e1"],
+  ["screenshot", "result.png"]
+]' | acbrowser batch --json
+```
+
+<table>
+  <thead>
+    <tr><th>Option</th><th>Description</th></tr>
+  </thead>
+  <tbody>
+    <tr><td><code>--bail</code></td><td>Stop on first error (default: continue all commands)</td></tr>
+    <tr><td><code>--json</code></td><td>Output results as a JSON array</td></tr>
+  </tbody>
+</table>
+
+## Command chaining
+
+Chain commands with `&&` in a single shell invocation. The browser persists via a background daemon, so chaining works naturally and is more efficient than separate calls:
+
+```bash
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser snapshot -i
+acbrowser fill @e1 "user@example.com" && acbrowser fill @e2 "pass" && acbrowser click @e3
+acbrowser open example.com && acbrowser wait --load networkidle && acbrowser screenshot page.png
+```
+
+Use `&&` when you don't need to read intermediate output. Run commands separately when you need to parse output first (e.g., snapshot to discover refs, then interact with those refs).
+
+## Local files
+
+Open local files (PDFs, HTML) using `file://` URLs:
+
+```bash
+acbrowser --allow-file-access open file:///path/to/document.pdf
+acbrowser --allow-file-access open file:///path/to/page.html
+acbrowser screenshot output.png
+```
+
+The `--allow-file-access` flag enables JavaScript to access other local files. Chromium only.
