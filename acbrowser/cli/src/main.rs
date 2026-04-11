@@ -1,4 +1,5 @@
 mod chat;
+mod check_updates;
 mod color;
 mod commands;
 mod connection;
@@ -29,6 +30,7 @@ use output::{
     print_command_help, print_help, print_response_with_opts, print_version, OutputOptions,
 };
 use upgrade::run_upgrade;
+use check_updates::run_check_updates;
 
 fn serialize_json_value(value: &serde_json::Value) -> String {
     serde_json::to_string(value).unwrap_or_else(|_| {
@@ -648,6 +650,12 @@ fn main() {
     // Handle upgrade separately
     if clean.first().map(|s| s.as_str()) == Some("upgrade") {
         run_upgrade();
+        return;
+    }
+
+    // Handle check-updates separately (doesn't need daemon)
+    if clean.first().map(|s| s.as_str()) == Some("check-updates") {
+        run_check_updates(flags.json);
         return;
     }
 

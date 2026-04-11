@@ -1,0 +1,167 @@
+name: Version Check
+
+on:
+  schedule:
+    # Run daily at 6:00 AM UTC
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    # Allow manual trigger
+    inputs:
+      notify:
+        description: 'Create issue notification'
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  check-upstream:
+    name: Check for Updates
+    runs-on: ubuntu-latest
+    outputs:
+      agent-browser-update: ${{ steps.check-agent-browser.outputs.has_update }}
+      cloakbrowser-update: ${{ steps.check-cloakbrowser.outputs.has_update }}
+      agent-browser-version: ${{ steps.check-agent-browser.outputs.current_version }}
+      cloakbrowser-version: ${{ steps.check-cloakbrowser.outputs.current_version }}
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Get current acbrowser version
+        id: current-version
+        run: |
+          CURRENT_VERSION=$(grep -m1 '^## ' acbrowser/CHANGELOG.md | sed 's/^## //' | cut -d'(' -f1 | tr -d ' ')
+          echo "version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+          echo "Current version: $CURRENT_VERSION"
+      
+      - name: Check agent-browser upstream
+        id: check-agent-browser
+        run: |
+          # Get latest release from Vercel agent-browser
+          LATEST=$(curl -s https://api.github.com/repos/vercel-labs/agent-browser/releases/latest | jq -r '.tag_name' | sed 's/^v//')
+          CURRENT="${{ steps.current-version.outputs.version }}"
+          
+          echo "Upstream agent-browser version: $LATEST"
+          echo "Current fork version: $CURRENT"
+          
+          # Check if our version is based on an older upstream
+          CURRENT_BASE=$(echo "$CURRENT" | cut -d'-' -f1)
+          
+          if [ "$LATEST" != "$CURRENT_BASE" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "current_version=$LATEST" >> $GITHUB_OUTPUT
+            echo "::notice::New agent-browser version available: $LATEST (current base: $CURRENT_BASE)"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "current_version=$CURRENT_BASE" >> $GITHUB_OUTPUT
+            echo "::notice::agent-browser is up to date: $LATEST"
+          fi
+      
+      - name: Check CloakBrowser version
+        id: check-cloakbrowser
+        run: |
+          # Get current CloakBrowser version from config
+          CURRENT_CLOAK=$(grep -o '"[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*\.[0-9]*"' CloakBrowser/js/src/config.ts | head -1 | tr -d '"')
+          
+          # Check latest CloakBrowser release
+          LATEST_CLOAK=$(curl -s https://api.github.com/repos/nicholasruunu/cloakbrowser/releases/latest 2>/dev/null | jq -r '.tag_name' 2>/dev/null || echo "unknown")
+          
+          # Or check from CloakBrowser.dev API if available
+          if [ "$LATEST_CLOAK" = "unknown" ] || [ "$LATEST_CLOAK" = "null" ]; then
+            # Fallback: check package.json version
+            LATEST_CLOAK=$(curl -s https://raw.githubusercontent.com/nicholasruunu/cloakbrowser/main/js/package.json 2>/dev/null | jq -r '.version' 2>/dev/null || echo "$CURRENT_CLOAK")
+          fi
+          
+          echo "CloakBrowser current: $CURRENT_CLOAK"
+          echo "CloakBrowser latest: $LATEST_CLOAK"
+          
+          if [ "$LATEST_CLOAK" != "$CURRENT_CLOAK" ] && [ "$LATEST_CLOAK" != "unknown" ] && [ "$LATEST_CLOAK" != "null" ]; then
+            echo "has_update=true" >> $GITHUB_OUTPUT
+            echo "current_version=$LATEST_CLOAK" >> $GITHUB_OUTPUT
+            echo "::notice::New CloakBrowser version available: $LATEST_CLOAK (current: $CURRENT_CLOAK)"
+          else
+            echo "has_update=false" >> $GITHUB_OUTPUT
+            echo "current_version=$CURRENT_CLOAK" >> $GITHUB_OUTPUT
+            echo "::notice::CloakBrowser is up to date: $CURRENT_CLOAK"
+          fi
+
+  create-issue:
+    name: Create Update Notification
+    needs: check-upstream
+    if: needs.check-upstream.outputs.agent-browser-update == 'true' || needs.check-upstream.outputs.cloakbrowser-update == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    
+    steps:
+      - name: Create Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const hasAgentBrowserUpdate = '${{ needs.check-upstream.outputs.agent-browser-update }}' === 'true';
+            const hasCloakBrowserUpdate = '${{ needs.check-upstream.outputs.cloakbrowser-update }}' === 'true';
+            
+            let title = '🔄 Updates Available: ';
+            const updates = [];
+            
+            if (hasAgentBrowserUpdate) {
+              updates.push(`agent-browser v${{ needs.check-upstream.outputs.agent-browser-version }}`);
+            }
+            if (hasCloakBrowserUpdate) {
+              updates.push(`CloakBrowser v${{ needs.check-upstream.outputs.cloakbrowser-version }}`);
+            }
+            
+            title += updates.join(', ');
+            
+            // Check if similar issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'update-available'
+            });
+            
+            // Close old update issues
+            for (const issue of issues.data) {
+              if (issue.title.startsWith('🔄 Updates Available:')) {
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  state: 'closed'
+                });
+              }
+            }
+            
+            let body = `## 🔄 Updates Available\n\n`;
+            
+            if (hasAgentBrowserUpdate) {
+              body += `### agent-browser\n`;
+              body += `- **New Version**: v${{ needs.check-upstream.outputs.agent-browser-version }}\n`;
+              body += `- **Upstream**: https://github.com/vercel-labs/agent-browser/releases\n`;
+              body += `- **Action Required**: Merge upstream changes into fork\n\n`;
+            }
+            
+            if (hasCloakBrowserUpdate) {
+              body += `### CloakBrowser\n`;
+              body += `- **New Version**: ${{ needs.check-upstream.outputs.cloakbrowser-version }}\n`;
+              body += `- **Action Required**: Update CloakBrowser binary version\n\n`;
+            }
+            
+            body += `---\n`;
+            body += `*This issue was automatically created by the version-check workflow.*\n`;
+            body += `*Run \`acbrowser check-updates\` locally to verify.*`;
+            
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: title,
+              body: body,
+              labels: ['update-available', 'automated']
+            });

@@ -1,6 +1,33 @@
 # acbrowser
 
-## 0.25.3
+## 0.25.3-cloaked.1 (CloakBrowser Fork)
+
+### New Features
+
+- **CloakBrowser Integration** - Auto-detects and uses CloakBrowser stealth Chromium for bot detection bypass (FingerprintJS, Cloudflare, etc.). No configuration needed - just install and run.
+- **Default Stealth Mode** - `stealth: true` by default, always uses the patched stealth browser.
+- **Smart Page Loading** - Changed default from `WaitUntil::Load` to `WaitUntil::DomContentLoaded` to handle modern SPAs that never fully "load".
+- **Auto --no-sandbox on Linux** - Automatically adds `--no-sandbox` flag on Linux for container/VM compatibility.
+- **Version Check Command** - Added `acbrowser check-updates` command to check for new versions of upstream agent-browser and CloakBrowser.
+
+### Improvements
+
+- **ARM64 Linux Support** - Works out of the box on Linux ARM64 using CloakBrowser's patched Chromium.
+- **One-Command Setup** - No manual configuration required. Detects CloakBrowser at `~/.cloakbrowser/` automatically.
+
+### Project Structure
+
+- Consolidated all code into `acbrowser/` directory
+- Included CloakBrowser source (no git submodule)
+- Added `cloak.rs` module for stealth browser discovery
+
+### Contributors
+
+- @rinadelph (fork maintainer)
+
+---
+
+## 0.25.3 (Upstream)
 
 <!-- release:start -->
 ### Bug Fixes
